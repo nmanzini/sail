@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Sailing Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        #compass {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 100px;
+            height: 100px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+        #compass-needle {
+            position: absolute;
+            width: 4px;
+            height: 70px;
+            background: linear-gradient(to bottom, red 0%, red 50%, white 50%, white 100%);
+            transform-origin: center bottom;
+        }
+        #compass-label {
+            position: absolute;
+            top: 5px;
+            font-size: 12px;
+            color: white;
+            font-weight: bold;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>Simple Sailing Simulator</h3>
+        <p>Controls:</p>
+        <p>A/D: Control rudder (turn left/right)</p>
+        <p>Left/Right Arrow: Adjust sail trim</p>
+        <p>Wind direction: <span id="wind-direction">North</span></p>
+        <p>Speed: <span id="boat-speed">0.0</span> knots</p>
+    </div>
+    <div id="compass">
+        <div id="compass-needle"></div>
+        <div id="compass-label">N</div>
+    </div>
+    <div id="loading">Loading simulator...</div>
+
+    <!-- Import Three.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+    
+    <!-- Import required modules -->
+    <script>
+        // Check if Three.js loaded correctly
+        window.addEventListener('load', function() {
+            if (typeof THREE === 'undefined') {
+                console.error('Three.js failed to load');
+                document.getElementById('loading').textContent = 'Error: Three.js failed to load. Please check your internet connection.';
+            } else {
+                console.log('Three.js loaded successfully');
+                // Load additional scripts after Three.js is confirmed loaded
+                loadScripts();
+            }
+        });
+
+        function loadScripts() {
+            const scripts = [
+                'https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/controls/OrbitControls.js',
+                'https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/objects/Water.js',
+                'https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/objects/Sky.js'
+            ];
+            
+            let loaded = 0;
+            
+            scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = false;
+                script.onload = () => {
+                    loaded++;
+                    if (loaded === scripts.length) {
+                        console.log('All scripts loaded');
+                        document.getElementById('loading').style.display = 'none';
+                        initSimulator();
+                    }
+                };
+                script.onerror = () => {
+                    console.error('Failed to load script:', src);
+                    document.getElementById('loading').textContent = 'Error: Failed to load required scripts. Please check your internet connection.';
+                };
+                document.body.appendChild(script);
+            });
+        }
+    </script>
+
+    <script>
+        // Main variables
+        let scene, camera, renderer, water, boat, sail, rudder, flag;
+        let windDirection = new THREE.Vector3(0, 0, -1); // Initial wind from North
+        let windSpeed = 10; // Wind speed in knots
+        let windParticles = [];
+        let boatSpeed = 0;
+        let rudderAngle = 0;
+        let sailAngle = 0;
+        let compass;
+        
+        // Physics variables
+        const maxRudderAngle = Math.PI / 4; // 45 degrees
+        const maxSailAngle = Math.PI / 2; // 90 degrees
+        const rudderTurnSpeed = 0.05;
+        const sailTurnSpeed = 0.05;
+        const waterFriction = 0.98;
+        const sailEfficiency = 0.8;
+        
+        // Controls state
+        const keys = {
+            a: false,
+            d: false,
+            arrowLeft: false,
+            arrowRight: false
+        };
+
+        function initSimulator() {
+            // Initialize the scene
+            init();
+            animate();
+        }
+
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 30, 50);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            document.body.appendChild(renderer.domElement);
+            
+            // Add ambient light
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            // Add directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(100, 100, 50);
+            scene.add(directionalLight);
+            
+            try {
+                // Create water
+                const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
+                water = new THREE.Water(waterGeometry, {
+                    textureWidth: 512,
+                    textureHeight: 512,
+                    waterNormals: new THREE.TextureLoader().load('https://threejs.org/examples/textures/waternormals.jpg', function(texture) {
+                        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                    }),
+                    sunDirection: new THREE.Vector3(0, 1, 0),
+                    sunColor: 0xffffff,
+                    waterColor: 0x001e0f,
+                    distortionScale: 3.7,
+                    fog: false
+                });
+                water.rotation.x = -Math.PI / 2;
+                scene.add(water);
+                
+                // Create sky
+                const sky = new THREE.Sky();
+                sky.scale.setScalar(10000);
+                scene.add(sky);
+                
+                const skyUniforms = sky.material.uniforms;
+                skyUniforms['turbidity'].value = 10;
+                skyUniforms['rayleigh'].value = 2;
+                skyUniforms['mieCoefficient'].value = 0.005;
+                skyUniforms['mieDirectionalG'].value = 0.8;
+                
+                const sun = new THREE.Vector3();
+                
+                const phi = THREE.MathUtils.degToRad(90 - 10);
+                const theta = THREE.MathUtils.degToRad(180);
+                sun.setFromSphericalCoords(1, phi, theta);
+                
+                skyUniforms['sunPosition'].value.copy(sun);
+                water.material.uniforms['sunDirection'].value.copy(sun).normalize();
+            } catch (e) {
+                console.error('Error creating water or sky:', e);
+                // Create a simple water plane as fallback
+                const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
+                const waterMaterial = new THREE.MeshBasicMaterial({ color: 0x0077be });
+                water = new THREE.Mesh(waterGeometry, waterMaterial);
+                water.rotation.x = -Math.PI / 2;
+                scene.add(water);
+            }
+            
+            // Create islands
+            createIslands();
+            
+            // Create boat
+            createBoat();
+            
+            // Create wind particles
+            createWindParticles();
+            
+            // Create compass (in 3D)
+            createCompass3D();
+            
+            try {
+                // Add orbit controls for development
+                const controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.maxPolarAngle = Math.PI * 0.495;
+                controls.minDistance = 30;
+                controls.maxDistance = 100;
+            } catch (e) {
+                console.error('Error creating orbit controls:', e);
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Handle keyboard controls
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+            
+            // Set initial wind direction display
+            updateWindDirectionDisplay();
+        }
+
+        function createIslands() {
+            // Create several islands at different positions
+            const islandPositions = [
+                { x: 200, z: 200 },
+                { x: -300, z: 100 },
+                { x: 0, z: -400 },
+                { x: -200, z: -250 }
+            ];
+            
+            islandPositions.forEach(pos => {
+                const islandGeometry = new THREE.ConeGeometry(50, 30, 4);
+                const islandMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                const island = new THREE.Mesh(islandGeometry, islandMaterial);
+                island.position.set(pos.x, -5, pos.z);
+                island.rotation.y = Math.random() * Math.PI;
+                scene.add(island);
+                
+                // Add some trees to the island
+                const treeCount = Math.floor(Math.random() * 5) + 3;
+                for (let i = 0; i < treeCount; i++) {
+                    const treeHeight = Math.random() * 10 + 10;
+                    const trunkGeometry = new THREE.CylinderGeometry(1, 1, treeHeight, 8);
+                    const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+                    
+                    const leavesGeometry = new THREE.ConeGeometry(5, 10, 8);
+                    const leavesMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+                    const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+                    leaves.position.y = treeHeight / 2;
+                    
+                    const tree = new THREE.Group();
+                    tree.add(trunk);
+                    tree.add(leaves);
+                    
+                    // Position tree on the island
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.random() * 30;
+                    tree.position.set(
+                        pos.x + Math.sin(angle) * radius,
+                        5,
+                        pos.z + Math.cos(angle) * radius
+                    );
+                    scene.add(tree);
+                }
+            });
+        }
+
+        function createBoat() {
+            // Create boat group
+            boat = new THREE.Group();
+            scene.add(boat);
+            
+            // Create hull
+            const hullGeometry = new THREE.BoxGeometry(5, 2, 15);
+            const hullMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const hull = new THREE.Mesh(hullGeometry, hullMaterial);
+            hull.position.y = 1;
+            boat.add(hull);
+            
+            // Create mast
+            const mastGeometry = new THREE.CylinderGeometry(0.2, 0.2, 20, 8);
+            const mastMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const mast = new THREE.Mesh(mastGeometry, mastMaterial);
+            mast.position.y = 12;
+            boat.add(mast);
+            
+            // Create sail
+            sail = new THREE.Group();
+            const sailGeometry = new THREE.PlaneGeometry(10, 15);
+            const sailMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xFFFFFF, 
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.9
+            });
+            const sailMesh = new THREE.Mesh(sailGeometry, sailMaterial);
+            sailMesh.position.set(5, 0, 0);
+            sail.add(sailMesh);
+            sail.position.set(0, 10, 0);
+            boat.add(sail);
+            
+            // Create rudder
+            rudder = new THREE.Group();
+            const rudderGeometry = new THREE.BoxGeometry(0.5, 2, 3);
+            const rudderMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const rudderMesh = new THREE.Mesh(rudderGeometry, rudderMaterial);
+            rudderMesh.position.set(0, -1, -7);
+            rudder.add(rudderMesh);
+            boat.add(rudder);
+            
+            // Create flag on top of mast
+            const flagPoleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+            const flagPoleMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const flagPole = new THREE.Mesh(flagPoleGeometry, flagPoleMaterial);
+            flagPole.position.set(0, 22, 0);
+            boat.add(flagPole);
+            
+            flag = new THREE.Group();
+            const flagGeometry = new THREE.PlaneGeometry(2, 1);
+            const flagMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xFF0000, 
+                side: THREE.DoubleSide 
+            });
+            const flagMesh = new THREE.Mesh(flagGeometry, flagMaterial);
+            flagMesh.position.set(1, 0, 0);
+            flag.add(flagMesh);
+            flag.position.set(0, 22, 0);
+            boat.add(flag);
+            
+            // Position boat at origin
+            boat.position.set(0, 0, 0);
+        }
+
+        function createWindParticles() {
+            // Create particles to visualize wind
+            const particleCount = 200;
+            const particleGeometry = new THREE.BufferGeometry();
+            const particlePositions = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                particlePositions[i3] = (Math.random() - 0.5) * 500;
+                particlePositions[i3 + 1] = Math.random() * 50 + 5;
+                particlePositions[i3 + 2] = (Math.random() - 0.5) * 500;
+            }
+            
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                color: 0xFFFFFF,
+                size: 1,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            const particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+            
+            windParticles = {
+                mesh: particles,
+                positions: particlePositions
+            };
+        }
+
+        function createCompass3D() {
+            // Create 3D compass that follows the boat
+            compass = new THREE.Group();
+            
+            // Compass base
+            const baseGeometry = new THREE.CylinderGeometry(2, 2, 0.2, 32);
+            const baseMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            compass.add(base);
+            
+            // Compass needle
+            const needleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+            const redMaterial = new THREE.MeshLambertMaterial({ color: 0xFF0000 });
+            const whiteMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+            
+            const redPart = new THREE.Mesh(needleGeometry, redMaterial);
+            redPart.scale.set(1, 0.5, 1);
+            redPart.position.y = 0.75;
+            
+            const whitePart = new THREE.Mesh(needleGeometry, whiteMaterial);
+            whitePart.scale.set(1, 0.5, 1);
+            whitePart.position.y = 2.25;
+            
+            const needle = new THREE.Group();
+            needle.add(redPart);
+            needle.add(whitePart);
+            needle.rotation.x = Math.PI / 2;
+            compass.add(needle);
+            
+            // Add N, S, E, W markers
+            const markerGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.1);
+            const markerMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+            
+            const northMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+            northMarker.position.set(0, 0, -1.8);
+            compass.add(northMarker);
+            
+            const southMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+            southMarker.position.set(0, 0, 1.8);
+            compass.add(southMarker);
+            
+            const eastMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+            eastMarker.position.set(1.8, 0, 0);
+            compass.add(eastMarker);
+            
+            const westMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+            westMarker.position.set(-1.8, 0, 0);
+            compass.add(westMarker);
+            
+            // Position compass
+            compass.position.set(0, 5, -10);
+            boat.add(compass);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onKeyDown(event) {
+            switch (event.key.toLowerCase()) {
+                case 'a':
+                    keys.a = true;
+                    break;
+                case 'd':
+                    keys.d = true;
+                    break;
+                case 'arrowleft':
+                    keys.arrowLeft = true;
+                    break;
+                case 'arrowright':
+                    keys.arrowRight = true;
+                    break;
+            }
+        }
+
+        function onKeyUp(event) {
+            switch (event.key.toLowerCase()) {
+                case 'a':
+                    keys.a = false;
+                    break;
+                case 'd':
+                    keys.d = false;
+                    break;
+                case 'arrowleft':
+                    keys.arrowLeft = false;
+                    break;
+                case 'arrowright':
+                    keys.arrowRight = false;
+                    break;
+            }
+        }
+
+        function updateBoat(deltaTime) {
+            // Update rudder angle based on A/D keys
+            if (keys.a) {
+                rudderAngle = Math.max(rudderAngle - rudderTurnSpeed, -maxRudderAngle);
+            }
+            if (keys.d) {
+                rudderAngle = Math.min(rudderAngle + rudderTurnSpeed, maxRudderAngle);
+            }
+            
+            // Update sail angle based on left/right arrow keys
+            if (keys.arrowLeft) {
+                sailAngle = Math.max(sailAngle - sailTurnSpeed, -maxSailAngle);
+            }
+            if (keys.arrowRight) {
+                sailAngle = Math.min(sailAngle + sailTurnSpeed, maxSailAngle);
+            }
+            
+            // Apply rudder angle
+            rudder.rotation.y = rudderAngle;
+            
+            // Apply sail angle
+            sail.rotation.y = sailAngle;
+            
+            // Calculate boat physics
+            // 1. Get boat's forward direction
+            const boatDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(boat.quaternion);
+            
+            // 2. Calculate angle between wind and sail
+            const sailDirection = new THREE.Vector3(Math.sin(sailAngle), 0, Math.cos(sailAngle)).applyQuaternion(boat.quaternion);
+            const windSailAngle = sailDirection.angleTo(windDirection);
+            
+            // 3. Calculate sail force
+            // Optimal angle is around 90 degrees (PI/2)
+            const optimalAngle = Math.PI / 2;
+            const sailForce = Math.sin(windSailAngle) * windSpeed * sailEfficiency;
+            
+            // 4. Apply sail force to boat speed
+            boatSpeed += sailForce * 0.01;
+            
+            // 5. Apply water friction
+            boatSpeed *= waterFriction;
+            
+            // 6. Apply rudder effect to rotation
+            boat.rotation.y += rudderAngle * boatSpeed * 0.01;
+            
+            // 7. Move boat forward
+            boat.position.add(boatDirection.multiplyScalar(boatSpeed * deltaTime));
+            
+            // Update flag direction based on relative wind
+            // Calculate relative wind (wind - boat velocity)
+            const boatVelocity = boatDirection.clone().multiplyScalar(boatSpeed);
+            const relativeWind = windDirection.clone().multiplyScalar(windSpeed).sub(boatVelocity);
+            
+            // Make flag point away from relative wind
+            const flagDirection = relativeWind.clone().normalize();
+            flag.lookAt(flag.position.clone().add(flagDirection));
+            
+            // Update UI
+            document.getElementById('boat-speed').textContent = boatSpeed.toFixed(1);
+            
+            // Update camera to follow boat
+            camera.position.x = boat.position.x;
+            camera.position.z = boat.position.z + 50;
+            camera.lookAt(boat.position);
+        }
+
+        function updateWindParticles() {
+            // Move wind particles in wind direction
+            const positions = windParticles.positions;
+            const count = positions.length / 3;
+            
+            for (let i = 0; i < count; i++) {
+                const i3 = i * 3;
+                
+                // Move particle in wind direction
+                positions[i3] += windDirection.x * windSpeed * 0.1;
+                positions[i3 + 1] += windDirection.y * windSpeed * 0.01;
+                positions[i3 + 2] += windDirection.z * windSpeed * 0.1;
+                
+                // Reset particle if it goes too far
+                const distance = Math.sqrt(
+                    Math.pow(positions[i3] - boat.position.x, 2) +
+                    Math.pow(positions[i3 + 2] - boat.position.z, 2)
+                );
+                
+                if (distance > 500) {
+                    positions[i3] = boat.position.x + (Math.random() - 0.5) * 500;
+                    positions[i3 + 1] = Math.random() * 50 + 5;
+                    positions[i3 + 2] = boat.position.z + (Math.random() - 0.5) * 500;
+                }
+            }
+            
+            windParticles.mesh.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function updateWindDirectionDisplay() {
+            // Convert wind direction to compass direction
+            const angle = Math.atan2(windDirection.x, windDirection.z);
+            const degrees = (angle * 180 / Math.PI + 180) % 360;
+            
+            let direction;
+            if (degrees >= 337.5 || degrees < 22.5) {
+                direction = "South";
+            } else if (degrees >= 22.5 && degrees < 67.5) {
+                direction = "South-West";
+            } else if (degrees >= 67.5 && degrees < 112.5) {
+                direction = "West";
+            } else if (degrees >= 112.5 && degrees < 157.5) {
+                direction = "North-West";
+            } else if (degrees >= 157.5 && degrees < 202.5) {
+                direction = "North";
+            } else if (degrees >= 202.5 && degrees < 247.5) {
+                direction = "North-East";
+            } else if (degrees >= 247.5 && degrees < 292.5) {
+                direction = "East";
+            } else {
+                direction = "South-East";
+            }
+            
+            document.getElementById('wind-direction').textContent = direction;
+            
+            // Update HTML compass
+            const compassNeedle = document.getElementById('compass-needle');
+            compassNeedle.style.transform = `rotate(${degrees}deg)`;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = 0.016; // Approximately 60fps
+            
+            // Update water
+            if (water && water.material && water.material.uniforms && water.material.uniforms['time']) {
+                water.material.uniforms['time'].value += deltaTime;
+            }
+            
+            // Update boat physics
+            updateBoat(deltaTime);
+            
+            // Update wind particles
+            updateWindParticles();
+            
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html> 
