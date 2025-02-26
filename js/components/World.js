@@ -263,20 +263,20 @@ class World {
     }
     
     /**
-     * Set the wind direction
-     * @param {THREE.Vector3} direction - The new wind direction
+     * Set the wind direction and speed
+     * @param {THREE.Vector3} direction - The wind direction vector
+     * @param {number} speed - The wind speed
      */
-    setWindDirection(direction) {
-        this.windDirection.copy(direction.normalize());
-        return this.getWindDirectionName();
-    }
-    
-    /**
-     * Set the wind speed
-     * @param {number} speed - The new wind speed
-     */
-    setWindSpeed(speed) {
-        this.windSpeed = speed;
+    setWind(direction, speed) {
+        // Normalize the direction vector
+        this.windDirection = direction.clone().normalize();
+        
+        // Set the wind speed (ensure it's positive)
+        this.windSpeed = Math.max(0, speed);
+        
+        console.log("Wind updated:", 
+            "Direction:", this.windDirection, 
+            "Speed:", this.windSpeed);
     }
     
     /**
