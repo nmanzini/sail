@@ -4,14 +4,16 @@ import * as THREE from 'three';
  * World class representing the environment (sea, wind, islands)
  */
 class World {
-    constructor(scene) {
+    constructor(scene, camera = null) {
         this.scene = scene;
+        this.camera = camera; // Store camera reference
         this.water = null;
         this.islands = [];
         this.windDirection = new THREE.Vector3(0, 0, 1); // Wind from South (blowing northward)
         this.windSpeed = 5.0; // Increased default wind speed for better sailing
         this.windParticles = null;
         this.particleSystem = null;
+        this.windVisibilityRadius = 300; // Radius around camera where wind particles are visible
         
         // Initialize the world
         this.init();
@@ -161,16 +163,25 @@ class World {
     }
     
     /**
+     * Set the camera reference (if not set in constructor)
+     * @param {THREE.Camera} camera - The camera to use for wind particle visibility
+     */
+    setCamera(camera) {
+        this.camera = camera;
+    }
+    
+    /**
      * Create wind particles to visualize wind direction
      */
     createWindParticles() {
         // Create particle geometry
-        const particleCount = 500;
+        const particleCount = 800; // Increased for better density around camera
         const particles = new THREE.BufferGeometry();
         
         // Create arrays for particle positions and velocities
         const positions = new Float32Array(particleCount * 3);
         const velocities = new Float32Array(particleCount * 3);
+        const visible = new Float32Array(particleCount);
         
         // Set random positions within a large cube above the water
         for (let i = 0; i < particleCount; i++) {
@@ -185,15 +196,20 @@ class World {
             velocities[i3] = this.windDirection.x * this.windSpeed;
             velocities[i3 + 1] = 0; // No vertical movement initially
             velocities[i3 + 2] = this.windDirection.z * this.windSpeed;
+            
+            // All particles start visible
+            visible[i] = 1.0;
         }
         
         // Add attributes to geometry
         particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particles.setAttribute('visible', new THREE.BufferAttribute(visible, 1));
         
         // Store velocities for animation
         this.windParticles = {
             positions: positions,
             velocities: velocities,
+            visible: visible,
             count: particleCount
         };
         
@@ -217,15 +233,24 @@ class World {
      * @param {number} deltaTime - Time since last update in seconds
      */
     updateWindParticles(deltaTime) {
-        if (!this.windParticles) return;
+        if (!this.windParticles || !this.camera) return;
         
         const positions = this.windParticles.positions;
         const velocities = this.windParticles.velocities;
+        const visible = this.windParticles.visible;
         const count = this.windParticles.count;
+        const cameraPosition = this.camera.position.clone();
+        const radiusSquared = this.windVisibilityRadius * this.windVisibilityRadius;
         
         // Update velocities based on current wind direction
         for (let i = 0; i < count; i++) {
             const i3 = i * 3;
+            
+            // Calculate distance to camera (squared, for efficiency)
+            const dx = positions[i3] - cameraPosition.x;
+            const dy = positions[i3 + 1] - cameraPosition.y;
+            const dz = positions[i3 + 2] - cameraPosition.z;
+            const distanceSquared = dx * dx + dy * dy + dz * dz;
             
             // Update velocity based on current wind
             velocities[i3] = this.windDirection.x * this.windSpeed;
@@ -241,20 +266,30 @@ class World {
             positions[i3 + 1] += velocities[i3 + 1] * deltaTime;
             positions[i3 + 2] += velocities[i3 + 2] * deltaTime;
             
-            // If particle goes out of bounds, reset it to the upwind side
+            // Check if particle is within visibility radius of camera
+            const isVisible = distanceSquared <= radiusSquared;
+            
+            // If particle goes out of bounds or is too far from camera, reset it
             const boundSize = 500;
-            if (
+            const isOutOfBounds = (
                 positions[i3] > boundSize || 
                 positions[i3] < -boundSize || 
                 positions[i3 + 2] > boundSize || 
                 positions[i3 + 2] < -boundSize ||
                 positions[i3 + 1] < 5 ||
                 positions[i3 + 1] > 60
-            ) {
-                // Reset position to upwind side (opposite of wind direction)
-                positions[i3] = -this.windDirection.x * boundSize * (0.8 + Math.random() * 0.2) + (Math.random() - 0.5) * boundSize;
-                positions[i3 + 1] = Math.random() * 50 + 10; // 10-60 units above water
-                positions[i3 + 2] = -this.windDirection.z * boundSize * (0.8 + Math.random() * 0.2) + (Math.random() - 0.5) * boundSize;
+            );
+            
+            if (isOutOfBounds || !isVisible) {
+                // Reset position to a random location within the visibility radius of camera
+                const radius = Math.sqrt(Math.random()) * this.windVisibilityRadius;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI * 2;
+                
+                // Calculate position in spherical coordinates relative to camera
+                positions[i3] = cameraPosition.x + radius * Math.sin(phi) * Math.cos(theta);
+                positions[i3 + 1] = Math.max(10, Math.min(60, cameraPosition.y + radius * Math.sin(phi) * Math.sin(theta)));
+                positions[i3 + 2] = cameraPosition.z + radius * Math.cos(phi);
             }
         }
         
@@ -333,6 +368,22 @@ class World {
     update(deltaTime) {
         // Update wind particles
         this.updateWindParticles(deltaTime);
+    }
+    
+    /**
+     * Set the wind visibility radius
+     * @param {number} radius - The radius around camera where wind particles are visible
+     */
+    setWindVisibilityRadius(radius) {
+        this.windVisibilityRadius = Math.max(50, radius);
+    }
+    
+    /**
+     * Get the wind visibility radius
+     * @returns {number} The current wind visibility radius
+     */
+    getWindVisibilityRadius() {
+        return this.windVisibilityRadius;
     }
 }
 
