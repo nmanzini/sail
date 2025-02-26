@@ -4,7 +4,7 @@ import * as THREE from 'three';
  * Boat class representing the sailing boat
  */
 class Boat {
-    constructor(scene, world) {
+    constructor(scene, world, options = {}) {
         this.scene = scene;
         this.world = world;
         
@@ -24,6 +24,14 @@ class Boat {
         // Boat properties
         this.maxSailAngle = Math.PI / 2; // 90 degrees
         this.maxRudderAngle = Math.PI / 4; // 45 degrees
+        
+        // Boat dimensions (configurable)
+        this.hullLength = options.hullLength || 15; // Hull length (from bow to stern)
+        this.hullWidth = options.hullWidth || 5; // Hull width (beam)
+        this.mastHeight = options.mastHeight || 23; // Height of the mast
+        this.sailLength = options.sailLength || 8; // Length of the sail
+        this.sailHeight = options.sailHeight || 14; // Height of the sail
+        this.boomLength = options.boomLength || this.sailLength + 1; // Length of the boom
         
         // Initialize the boat
         this.init();
@@ -46,21 +54,23 @@ class Boat {
         
         // Create hull with triangular front - improved shape
         const hullShape = new THREE.Shape();
+        const halfLength = this.hullLength / 2;
+        
         // Start at the back center (negative Z)
-        hullShape.moveTo(0, -7.5);
+        hullShape.moveTo(0, -halfLength);
         // Draw to the front point (positive Z)
-        hullShape.lineTo(0, 7.5);
+        hullShape.lineTo(0, halfLength);
         // Draw to the back right
-        hullShape.lineTo(2.5, -7.5);
+        hullShape.lineTo(this.hullWidth / 2, -halfLength);
         // Close the shape
-        hullShape.lineTo(0, -7.5);
+        hullShape.lineTo(0, -halfLength);
         
         // Create a mirrored shape for the left side
         const hullShapeLeft = new THREE.Shape();
-        hullShapeLeft.moveTo(0, -7.5);
-        hullShapeLeft.lineTo(0, 7.5);
-        hullShapeLeft.lineTo(-2.5, -7.5);
-        hullShapeLeft.lineTo(0, -7.5);
+        hullShapeLeft.moveTo(0, -halfLength);
+        hullShapeLeft.lineTo(0, halfLength);
+        hullShapeLeft.lineTo(-this.hullWidth / 2, -halfLength);
+        hullShapeLeft.lineTo(0, -halfLength);
         
         const extrudeSettings = {
             steps: 1,
@@ -90,15 +100,23 @@ class Boat {
         this.boatGroup.add(hullLeft);
         
         // Create mast
-        const mastGeometry = new THREE.CylinderGeometry(0.2, 0.2, 15, 8);
+        const mastGeometry = new THREE.CylinderGeometry(0.2, 0.2, this.mastHeight, 8);
         const mastMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
         const mast = new THREE.Mesh(mastGeometry, mastMaterial);
-        mast.position.y = 8.5; // Lower mast height
+        mast.position.y = this.mastHeight / 2; // Position mast based on height
         this.boatGroup.add(mast);
         
-        // Create sail - smaller and centered
+        // Create sail - triangular shape
         this.sail = new THREE.Group();
-        const sailGeometry = new THREE.PlaneGeometry(8, 12);
+        
+        // Create triangular sail shape
+        const sailShape = new THREE.Shape();
+        sailShape.moveTo(0, 0);           // Bottom point at mast
+        sailShape.lineTo(0, this.sailHeight);  // Top point at mast top
+        sailShape.lineTo(this.sailLength, 0);  // Bottom corner extending to end of boom
+        sailShape.lineTo(0, 0);           // Close the shape
+        
+        const sailGeometry = new THREE.ShapeGeometry(sailShape);
         const sailMaterial = new THREE.MeshLambertMaterial({ 
             color: 0xFFFFFF, 
             side: THREE.DoubleSide,
@@ -107,31 +125,31 @@ class Boat {
         });
         const sailMesh = new THREE.Mesh(sailGeometry, sailMaterial);
         
-        // Position sail mesh along the Z axis (backward) instead of X axis
-        // This makes 0° align with the boat's direction
-        sailMesh.position.set(0, 0, -4); // Move sail backward
+        // Position the sail correctly
+        sailMesh.position.x = 0; // Position the sail on the correct side of the mast
+        sailMesh.position.y = 5; // Position the sail on the correct side of the mast
         sailMesh.rotation.y = Math.PI/2; // Rotate the sail mesh to face sideways
         
         this.sail.add(sailMesh);
-        this.sail.position.set(0, 8, 0); // Lower sail position
+        this.sail.position.set(0, 0, 0); // Position at the bottom of the mast
         this.boatGroup.add(this.sail);
         
         // Create rudder (at the back of the boat)
         this.rudder = new THREE.Group();
-        const rudderGeometry = new THREE.BoxGeometry(0.5, 2, 3);
+        const rudderGeometry = new THREE.BoxGeometry(0.5, 2, 4);
         const rudderMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
         const rudderMesh = new THREE.Mesh(rudderGeometry, rudderMaterial);
-        rudderMesh.position.set(0, -1, 0); // Position at the center of the rudder group
+        rudderMesh.position.set(0, 0, 0); // Position at the center of the rudder group
         this.rudder.add(rudderMesh);
-        this.rudder.position.set(0, 0, -7.5); // Position the rudder group at the back of the boat
+        this.rudder.position.set(0, 0, -halfLength); // Position the rudder at the stern
         this.boatGroup.add(this.rudder);
         
         // Create flag on top of mast
         const flagPoleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
         const flagPoleMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
         const flagPole = new THREE.Mesh(flagPoleGeometry, flagPoleMaterial);
-        flagPole.position.set(0, 16, 0); // Position at top of mast
-        this.boatGroup.add(flagPole);
+        flagPole.position.set(0, this.mastHeight, 0); // Position at top of mast
+        // this.boatGroup.add(flagPole);
         
         this.flag = new THREE.Group();
         const flagGeometry = new THREE.PlaneGeometry(2, 1);
@@ -142,15 +160,15 @@ class Boat {
         const flagMesh = new THREE.Mesh(flagGeometry, flagMaterial);
         flagMesh.position.set(1, 0, 0);
         this.flag.add(flagMesh);
-        this.flag.position.set(0, 16, 0); // Position at top of mast
-        this.boatGroup.add(this.flag);
+        this.flag.position.set(0, this.mastHeight, 0); // Position at top of mast
+        // this.boatGroup.add(this.flag);
         
         // Add a boom for the sail
-        const boomGeometry = new THREE.CylinderGeometry(0.1, 0.1, 8, 8);
+        const boomGeometry = new THREE.CylinderGeometry(0.1, 0.1, this.boomLength, 8);
         const boomMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
         const boom = new THREE.Mesh(boomGeometry, boomMaterial);
         boom.rotation.x = Math.PI / 2; // Rotate to align with Z axis
-        boom.position.set(0, 2, -4); // Position at bottom of sail along Z axis
+        boom.position.set(0, sailMesh.position.y, -this.boomLength / 2); // Position at bottom of sail
         this.sail.add(boom);
         
         // Position boat at origin
