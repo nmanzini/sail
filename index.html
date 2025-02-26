@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Sailing Simulator (Basic Version)</title>
+    <title>Simple Sailing Simulator</title>
     <style>
         body {
             margin: 0;
@@ -51,6 +51,28 @@
             color: white;
             font-weight: bold;
         }
+        #wind-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+        }
+        #wind-arrow {
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 20px solid white;
+            margin-left: 10px;
+            transform-origin: center bottom;
+        }
     </style>
 </head>
 <body>
@@ -59,8 +81,12 @@
         <p>Controls:</p>
         <p>A/D: Control rudder (turn left/right)</p>
         <p>Left/Right Arrow: Adjust sail trim</p>
-        <p>Wind direction: <span id="wind-direction">North</span></p>
+        <p>Boat heading: <span id="boat-heading">North</span></p>
         <p>Speed: <span id="boat-speed">0.0</span> knots</p>
+    </div>
+    <div id="wind-indicator">
+        Wind from: <span id="wind-direction">North</span>
+        <div id="wind-arrow"></div>
     </div>
     <div id="compass">
         <div id="compass-needle"></div>
@@ -71,7 +97,7 @@
     <script>
         // Main variables
         let scene, camera, renderer, water, boat, sail, rudder, flag;
-        let windDirection = new THREE.Vector3(0, 0, -1); // Initial wind from North
+        let windDirection = new THREE.Vector3(0, 0, 1); // Wind from South (blowing northward)
         let windSpeed = 10; // Wind speed in knots
         let windParticles = [];
         let boatSpeed = 0;
@@ -82,7 +108,7 @@
         
         // Physics variables
         const maxRudderAngle = Math.PI / 4; // 45 degrees
-        const maxSailAngle = Math.PI / 2; // 90 degrees
+        const maxSailAngle = Math.PI; // 180 degrees (full range of motion)
         const rudderTurnSpeed = 0.05;
         const rudderReturnSpeed = 0.03; // Speed at which rudder returns to center
         const sailTurnSpeed = 0.05;
@@ -108,7 +134,8 @@
             
             // Create camera
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.set(0, 30, 50);
+            camera.position.set(0, 40, 70); // Higher and further back for better view
+            camera.lookAt(0, 0, 0);
             
             // Create renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -146,6 +173,10 @@
             
             // Set initial wind direction display
             updateWindDirectionDisplay();
+            updateBoatHeadingDisplay();
+            
+            // Set initial wind arrow direction
+            updateWindArrow();
         }
 
         function createSeaWithPattern() {
@@ -268,23 +299,70 @@
             boat = new THREE.Group();
             scene.add(boat);
             
-            // Create hull
-            const hullGeometry = new THREE.BoxGeometry(5, 2, 15);
+            // Create hull with triangular front - improved shape
+            const hullShape = new THREE.Shape();
+            // Start at the back center
+            hullShape.moveTo(0, 7.5);
+            // Draw to the front point (triangular front)
+            hullShape.lineTo(0, -7.5);
+            // Draw to the back right
+            hullShape.lineTo(2.5, 7.5);
+            // Close the shape
+            hullShape.lineTo(0, 7.5);
+            
+            // Create a mirrored shape for the left side
+            const hullShapeLeft = new THREE.Shape();
+            hullShapeLeft.moveTo(0, 7.5);
+            hullShapeLeft.lineTo(0, -7.5);
+            hullShapeLeft.lineTo(-2.5, 7.5);
+            hullShapeLeft.lineTo(0, 7.5);
+            
+            const extrudeSettings = {
+                steps: 1,
+                depth: 1.5,
+                bevelEnabled: true,
+                bevelThickness: 0.5,
+                bevelSize: 0.5,
+                bevelSegments: 2
+            };
+            
+            const hullGeometry = new THREE.ExtrudeGeometry(hullShape, extrudeSettings);
+            const hullGeometryLeft = new THREE.ExtrudeGeometry(hullShapeLeft, extrudeSettings);
+            
             const hullMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
             const hull = new THREE.Mesh(hullGeometry, hullMaterial);
-            hull.position.y = 1;
+            const hullLeft = new THREE.Mesh(hullGeometryLeft, hullMaterial);
+            
+            hull.rotation.x = -Math.PI / 2; // Rotate to lie flat
+            hullLeft.rotation.x = -Math.PI / 2;
+            
+            hull.position.y = 0.5;
+            hullLeft.position.y = 0.5;
+            
             boat.add(hull);
+            boat.add(hullLeft);
+            
+            // Create a deck
+            const deckGeometry = new THREE.PlaneGeometry(4.5, 14);
+            const deckMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xA0522D, 
+                side: THREE.DoubleSide 
+            });
+            const deck = new THREE.Mesh(deckGeometry, deckMaterial);
+            deck.rotation.x = -Math.PI / 2;
+            deck.position.y = 1.1;
+            boat.add(deck);
             
             // Create mast
-            const mastGeometry = new THREE.CylinderGeometry(0.2, 0.2, 20, 8);
+            const mastGeometry = new THREE.CylinderGeometry(0.2, 0.2, 15, 8);
             const mastMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
             const mast = new THREE.Mesh(mastGeometry, mastMaterial);
-            mast.position.y = 12;
+            mast.position.y = 8.5; // Lower mast height
             boat.add(mast);
             
-            // Create sail
+            // Create sail - smaller and centered
             sail = new THREE.Group();
-            const sailGeometry = new THREE.PlaneGeometry(10, 15);
+            const sailGeometry = new THREE.PlaneGeometry(8, 12);
             const sailMaterial = new THREE.MeshLambertMaterial({ 
                 color: 0xFFFFFF, 
                 side: THREE.DoubleSide,
@@ -292,25 +370,25 @@
                 opacity: 0.9
             });
             const sailMesh = new THREE.Mesh(sailGeometry, sailMaterial);
-            sailMesh.position.set(5, 0, 0);
+            sailMesh.position.set(4, 0, 0); // Position sail to the side of mast
             sail.add(sailMesh);
-            sail.position.set(0, 10, 0);
+            sail.position.set(0, 8, 0); // Lower sail position
             boat.add(sail);
             
-            // Create rudder
+            // Create rudder (at the back of the boat)
             rudder = new THREE.Group();
             const rudderGeometry = new THREE.BoxGeometry(0.5, 2, 3);
             const rudderMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
             const rudderMesh = new THREE.Mesh(rudderGeometry, rudderMaterial);
-            rudderMesh.position.set(0, -1, -7);
+            rudderMesh.position.set(0, -1, 7.5); // At the very back
             rudder.add(rudderMesh);
             boat.add(rudder);
             
             // Create flag on top of mast
-            const flagPoleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+            const flagPoleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
             const flagPoleMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
             const flagPole = new THREE.Mesh(flagPoleGeometry, flagPoleMaterial);
-            flagPole.position.set(0, 22, 0);
+            flagPole.position.set(0, 16, 0); // Position at top of mast
             boat.add(flagPole);
             
             flag = new THREE.Group();
@@ -322,11 +400,22 @@
             const flagMesh = new THREE.Mesh(flagGeometry, flagMaterial);
             flagMesh.position.set(1, 0, 0);
             flag.add(flagMesh);
-            flag.position.set(0, 22, 0);
+            flag.position.set(0, 16, 0); // Position at top of mast
             boat.add(flag);
+            
+            // Add a boom for the sail
+            const boomGeometry = new THREE.CylinderGeometry(0.1, 0.1, 8, 8);
+            const boomMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const boom = new THREE.Mesh(boomGeometry, boomMaterial);
+            boom.rotation.z = Math.PI / 2; // Rotate to horizontal
+            boom.position.set(4, 2, 0); // Position at bottom of sail
+            sail.add(boom);
             
             // Position boat at origin
             boat.position.set(0, 0, 0);
+            
+            // Rotate boat to face north initially (negative Z)
+            boat.rotation.y = 0;
         }
 
         function createWindParticles() {
@@ -424,10 +513,10 @@
             
             // Update sail angle based on left/right arrow keys
             if (keys.arrowLeft) {
-                sailAngle = Math.max(sailAngle - sailTurnSpeed, -maxSailAngle);
+                sailAngle = Math.max(sailAngle - sailTurnSpeed, -maxSailAngle/2);
             }
             if (keys.arrowRight) {
-                sailAngle = Math.min(sailAngle + sailTurnSpeed, maxSailAngle);
+                sailAngle = Math.min(sailAngle + sailTurnSpeed, maxSailAngle/2);
             }
             
             // Apply rudder angle
@@ -447,7 +536,8 @@
             // 3. Calculate sail force
             // Optimal angle is around 90 degrees (PI/2)
             const optimalAngle = Math.PI / 2;
-            const sailForce = Math.sin(windSailAngle) * windSpeed * sailEfficiency;
+            const sailEfficiencyFactor = Math.sin(windSailAngle) * 2; // Highest at 90 degrees
+            const sailForce = sailEfficiencyFactor * windSpeed * sailEfficiency;
             
             // 4. Apply sail force to boat speed
             boatSpeed += sailForce * 0.01;
@@ -455,8 +545,8 @@
             // 5. Apply water friction
             boatSpeed *= waterFriction;
             
-            // 6. Apply rudder effect to rotation
-            boat.rotation.y += rudderAngle * boatSpeed * 0.01;
+            // 6. Apply rudder effect to rotation (reversed since rudder is at the back)
+            boat.rotation.y -= rudderAngle * boatSpeed * 0.01;
             
             // 7. Move boat forward
             boat.position.add(boatDirection.multiplyScalar(boatSpeed * deltaTime));
@@ -481,10 +571,17 @@
             // Update UI
             document.getElementById('boat-speed').textContent = boatSpeed.toFixed(1);
             
+            // Update boat heading display
+            updateBoatHeadingDisplay();
+            
             // Update camera to follow boat
             camera.position.x = boat.position.x;
-            camera.position.z = boat.position.z + 50;
+            camera.position.z = boat.position.z + 70; // Further back
+            camera.position.y = 40; // Higher up
             camera.lookAt(boat.position);
+            
+            // Update compass to show boat's heading
+            updateCompass();
         }
 
         function updateWindParticles() {
@@ -519,32 +616,76 @@
         function updateWindDirectionDisplay() {
             // Convert wind direction to compass direction
             const angle = Math.atan2(windDirection.x, windDirection.z);
-            const degrees = (angle * 180 / Math.PI + 180) % 360;
+            const degrees = (angle * 180 / Math.PI) % 360;
             
             let direction;
             if (degrees >= 337.5 || degrees < 22.5) {
                 direction = "South";
             } else if (degrees >= 22.5 && degrees < 67.5) {
-                direction = "South-West";
+                direction = "South-East";
             } else if (degrees >= 67.5 && degrees < 112.5) {
-                direction = "West";
+                direction = "East";
             } else if (degrees >= 112.5 && degrees < 157.5) {
-                direction = "North-West";
+                direction = "North-East";
             } else if (degrees >= 157.5 && degrees < 202.5) {
                 direction = "North";
             } else if (degrees >= 202.5 && degrees < 247.5) {
-                direction = "North-East";
+                direction = "North-West";
             } else if (degrees >= 247.5 && degrees < 292.5) {
-                direction = "East";
+                direction = "West";
             } else {
-                direction = "South-East";
+                direction = "South-West";
             }
             
             document.getElementById('wind-direction').textContent = direction;
+            updateWindArrow();
+        }
+        
+        function updateWindArrow() {
+            // Update the wind arrow to point in the direction the wind is coming FROM
+            const angle = Math.atan2(windDirection.x, windDirection.z);
+            const degrees = (angle * 180 / Math.PI) % 360;
+            document.getElementById('wind-arrow').style.transform = `rotate(${degrees}deg)`;
+        }
+        
+        function updateBoatHeadingDisplay() {
+            // Get boat's forward direction
+            const boatDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(boat.quaternion);
             
-            // Update HTML compass
-            const compassNeedle = document.getElementById('compass-needle');
-            compassNeedle.style.transform = `rotate(${degrees}deg)`;
+            // Convert to compass direction
+            const angle = Math.atan2(boatDirection.x, boatDirection.z);
+            const degrees = (angle * 180 / Math.PI + 180) % 360;
+            
+            let direction;
+            if (degrees >= 337.5 || degrees < 22.5) {
+                direction = "North";
+            } else if (degrees >= 22.5 && degrees < 67.5) {
+                direction = "North-East";
+            } else if (degrees >= 67.5 && degrees < 112.5) {
+                direction = "East";
+            } else if (degrees >= 112.5 && degrees < 157.5) {
+                direction = "South-East";
+            } else if (degrees >= 157.5 && degrees < 202.5) {
+                direction = "South";
+            } else if (degrees >= 202.5 && degrees < 247.5) {
+                direction = "South-West";
+            } else if (degrees >= 247.5 && degrees < 292.5) {
+                direction = "West";
+            } else {
+                direction = "North-West";
+            }
+            
+            document.getElementById('boat-heading').textContent = direction;
+        }
+        
+        function updateCompass() {
+            // Update compass to show boat's heading
+            const boatDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(boat.quaternion);
+            const angle = Math.atan2(boatDirection.x, boatDirection.z);
+            const degrees = (angle * 180 / Math.PI + 180) % 360;
+            
+            // Rotate compass needle to point north (opposite of boat's heading)
+            document.getElementById('compass-needle').style.transform = `rotate(${degrees}deg)`;
         }
 
         function animate() {
