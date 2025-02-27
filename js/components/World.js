@@ -12,7 +12,7 @@ class World {
         this.windDirection = new THREE.Vector3(0, 0, 1); // Wind from South (blowing northward)
         this.windSpeed = 5.0; // Increased default wind speed for better sailing
         this.windParticles = null;
-        this.particleSystem = null;
+        this.trailSystem = null; // Add trail system reference
         this.windVisibilityRadius = 800; // Increased radius for wider view of wind field
         
         // Initialize the world
@@ -172,74 +172,121 @@ class World {
     }
     
     /**
+     * Calculate opacity based on distance and wind speed
+     * @private
+     */
+    _calculateOpacity(position, cameraPosition) {
+        const dx = position.x - cameraPosition.x;
+        const dy = position.y - cameraPosition.y;
+        const dz = position.z - cameraPosition.z;
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const normalizedDistance = distance / this.windVisibilityRadius;
+        const distanceOpacity = Math.max(0.15, 1.0 - normalizedDistance * 0.85);
+        return distanceOpacity * (this.windSpeed / 50);
+    }
+    
+    /**
      * Create wind particles to visualize wind direction
      */
     createWindParticles() {
-        // Create particle geometry
-        const particleCount = 1000; // Many more particles
-        const particles = new THREE.BufferGeometry();
+        const particleCount = 500;
+        const trails = new THREE.BufferGeometry();
         
-        // Create arrays for particle positions and velocities
+        // Create arrays for trail data
         const positions = new Float32Array(particleCount * 3);
         const velocities = new Float32Array(particleCount * 3);
-        const opacities = new Float32Array(particleCount);
+        const trailPositions = new Float32Array(particleCount * 6);
+        const trailOpacities = new Float32Array(particleCount * 2);
         
-        // Set initial positions around camera
         if (this.camera) {
             const cameraPos = this.camera.position;
+            
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
+                const i6 = i * 6;
+                const i2 = i * 2;
                 
-                // Random position in a large cylinder around camera
-                const radius = Math.pow(Math.random(), 0.5) * this.windVisibilityRadius; // More even distribution
+                // Random position in a cylinder around camera
+                const radius = Math.pow(Math.random(), 0.5) * this.windVisibilityRadius;
                 const theta = Math.random() * Math.PI * 2;
                 
-                positions[i3] = cameraPos.x + radius * Math.cos(theta);
-                positions[i3 + 1] = Math.random() * 40 + 2;  // Wider height range (2-42 units)
-                positions[i3 + 2] = cameraPos.z + radius * Math.sin(theta);
+                const position = new THREE.Vector3(
+                    cameraPos.x + radius * Math.cos(theta),
+                    Math.random() * 40 + 2,
+                    cameraPos.z + radius * Math.sin(theta)
+                );
                 
-                // Set initial velocity based on wind direction and speed with subtle variation
+                // Store position
+                positions[i3] = position.x;
+                positions[i3 + 1] = position.y;
+                positions[i3 + 2] = position.z;
+                
+                // Set velocity
                 velocities[i3] = this.windDirection.x * this.windSpeed + (Math.random() - 0.5) * 1;
-                velocities[i3 + 1] = (Math.random() - 0.5) * 0.2; // Very slight vertical movement
+                velocities[i3 + 1] = (Math.random() - 0.5) * 0.2;
                 velocities[i3 + 2] = this.windDirection.z * this.windSpeed + (Math.random() - 0.5) * 1;
                 
-                // Calculate initial opacity based on distance with gentler falloff
-                const dx = positions[i3] - cameraPos.x;
-                const dy = positions[i3 + 1] - cameraPos.y;
-                const dz = positions[i3 + 2] - cameraPos.z;
-                const distanceSquared = dx * dx + dy * dy + dz * dz;
-                const normalizedDistance = Math.sqrt(distanceSquared) / this.windVisibilityRadius;
-                opacities[i] = Math.max(0.15, 1.0 - normalizedDistance * 0.85); // Lower minimum opacity, gentler falloff
+                // Calculate trail positions
+                const trailLength = this.windSpeed * 0.5;
+                const trailEnd = new THREE.Vector3(
+                    position.x - this.windDirection.x * trailLength,
+                    position.y - this.windDirection.y * trailLength,
+                    position.z - this.windDirection.z * trailLength
+                );
+                
+                // Store trail positions
+                trailPositions[i6] = position.x;
+                trailPositions[i6 + 1] = position.y;
+                trailPositions[i6 + 2] = position.z;
+                trailPositions[i6 + 3] = trailEnd.x;
+                trailPositions[i6 + 4] = trailEnd.y;
+                trailPositions[i6 + 5] = trailEnd.z;
+                
+                // Set trail opacities
+                const opacity = this._calculateOpacity(position, cameraPos);
+                trailOpacities[i2] = opacity * 2.0;
+                trailOpacities[i2 + 1] = 0;
             }
         }
         
-        // Add attributes to geometry
-        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        particles.setAttribute('opacity', new THREE.BufferAttribute(opacities, 1));
+        // Set up trail geometry
+        trails.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        trails.setAttribute('opacity', new THREE.BufferAttribute(trailOpacities, 1));
         
-        // Store velocities and opacities for animation
+        // Store data for animation
         this.windParticles = {
-            positions: positions,
-            velocities: velocities,
-            opacities: opacities,
+            positions,
+            velocities,
+            trailPositions,
+            trailOpacities,
             count: particleCount
         };
         
-        // Create particle material with smaller, more subtle particles
-        const particleMaterial = new THREE.PointsMaterial({
-            color: 0xFFFFFF,
-            size: 0.5, // Smaller particles
+        // Create trail material
+        const trailMaterial = new THREE.ShaderMaterial({
+            uniforms: {},
+            vertexShader: `
+                attribute float opacity;
+                varying float vOpacity;
+                void main() {
+                    vOpacity = opacity;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying float vOpacity;
+                void main() {
+                    gl_FragColor = vec4(1.0, 1.0, 1.0, vOpacity);
+                }
+            `,
             transparent: true,
-            opacity: 0.6, // Lower base opacity
-            blending: THREE.AdditiveBlending,
-            sizeAttenuation: true,
             depthTest: false,
-            depthWrite: false
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
         });
         
-        // Create particle system
-        this.particleSystem = new THREE.Points(particles, particleMaterial);
-        this.scene.add(this.particleSystem);
+        this.trailSystem = new THREE.LineSegments(trails, trailMaterial);
+        this.scene.add(this.trailSystem);
     }
     
     /**
@@ -248,68 +295,76 @@ class World {
      */
     updateWindParticles(deltaTime) {
         if (!this.windParticles || !this.camera) return;
-     
-        const positions = this.windParticles.positions;
-        const velocities = this.windParticles.velocities;
-        const opacities = this.windParticles.opacities;
-        const count = this.windParticles.count;
-        const cameraPosition = this.camera.position.clone();
         
-        // Calculate camera view direction
-        const cameraDirection = new THREE.Vector3(0, 0, -1);
-        cameraDirection.applyQuaternion(this.camera.quaternion);
+        const {positions, velocities, trailPositions, trailOpacities, count} = this.windParticles;
+        const cameraPosition = this.camera.position;
         
         for (let i = 0; i < count; i++) {
             const i3 = i * 3;
+            const i6 = i * 6;
+            const i2 = i * 2;
             
-            // Calculate distance to camera
-            const dx = positions[i3] - cameraPosition.x;
-            const dy = positions[i3 + 1] - cameraPosition.y;
-            const dz = positions[i3 + 2] - cameraPosition.z;
-            const distanceSquared = dx * dx + dy * dy + dz * dz;
-            const distance = Math.sqrt(distanceSquared);
-            
-            // Update positions based on velocity
+            // Update positions
             positions[i3] += velocities[i3] * deltaTime;
             positions[i3 + 1] += velocities[i3 + 1] * deltaTime;
             positions[i3 + 2] += velocities[i3 + 2] * deltaTime;
             
-            // Reset particle if too far from camera or out of height range
+            const position = new THREE.Vector3(positions[i3], positions[i3 + 1], positions[i3 + 2]);
+            const distance = position.distanceTo(cameraPosition);
+            
+            // Reset particle if out of bounds
             if (distance > this.windVisibilityRadius * 0.95 || 
                 positions[i3 + 1] < 1 || positions[i3 + 1] > 45) {
                 
-                // Reset position to upwind side of visibility area with more spread
                 const radius = Math.pow(Math.random(), 0.5) * (this.windVisibilityRadius * 0.7);
-                const spreadAngle = Math.PI * 0.75; // 135 degree spread for more natural flow
+                const spreadAngle = Math.PI * 0.75;
                 const theta = Math.atan2(-this.windDirection.z, -this.windDirection.x) + 
                              (Math.random() - 0.5) * spreadAngle;
                 
-                positions[i3] = cameraPosition.x + radius * Math.cos(theta);
-                positions[i3 + 1] = Math.random() * 40 + 2;
-                positions[i3 + 2] = cameraPosition.z + radius * Math.sin(theta);
+                position.set(
+                    cameraPosition.x + radius * Math.cos(theta),
+                    Math.random() * 40 + 2,
+                    cameraPosition.z + radius * Math.sin(theta)
+                );
                 
-                // Reset velocity with wind direction and subtle randomness
+                positions[i3] = position.x;
+                positions[i3 + 1] = position.y;
+                positions[i3 + 2] = position.z;
+                
                 velocities[i3] = this.windDirection.x * this.windSpeed + (Math.random() - 0.5) * 1;
                 velocities[i3 + 1] = (Math.random() - 0.5) * 0.2;
                 velocities[i3 + 2] = this.windDirection.z * this.windSpeed + (Math.random() - 0.5) * 1;
-                
-                // Reset opacity with distance consideration
-                const newDistance = radius / this.windVisibilityRadius;
-                opacities[i] = Math.max(0.15, 1.0 - newDistance * 0.85);
             } else {
-                // Update opacity based on distance with gentler falloff
-                const normalizedDistance = distance / this.windVisibilityRadius;
-                opacities[i] = Math.max(0.15, 1.0 - normalizedDistance * 0.85);
-                
-                // Very subtle velocity adjustment
+                // Update velocity
                 velocities[i3] += (this.windDirection.x * this.windSpeed - velocities[i3]) * deltaTime * 0.2;
                 velocities[i3 + 2] += (this.windDirection.z * this.windSpeed - velocities[i3 + 2]) * deltaTime * 0.2;
             }
+            
+            // Update trail
+            const trailLength = this.windSpeed * 0.5;
+            const trailEnd = new THREE.Vector3(
+                position.x - this.windDirection.x * trailLength,
+                position.y - this.windDirection.y * trailLength,
+                position.z - this.windDirection.z * trailLength
+            );
+            
+            // Update trail positions
+            trailPositions[i6] = position.x;
+            trailPositions[i6 + 1] = position.y;
+            trailPositions[i6 + 2] = position.z;
+            trailPositions[i6 + 3] = trailEnd.x;
+            trailPositions[i6 + 4] = trailEnd.y;
+            trailPositions[i6 + 5] = trailEnd.z;
+            
+            // Update trail opacity
+            const opacity = this._calculateOpacity(position, cameraPosition);
+            trailOpacities[i2] = opacity * 2.0;
+            trailOpacities[i2 + 1] = 0;
         }
         
-        // Update the particle system geometry and opacities
-        this.particleSystem.geometry.attributes.position.needsUpdate = true;
-        this.particleSystem.geometry.attributes.opacity.needsUpdate = true;
+        // Update geometry attributes
+        this.trailSystem.geometry.attributes.position.needsUpdate = true;
+        this.trailSystem.geometry.attributes.opacity.needsUpdate = true;
     }
     
     /**
