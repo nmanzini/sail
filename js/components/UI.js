@@ -390,7 +390,7 @@ class UI {
                         <div style="position: absolute; left: 5px; top: 50%; transform: translateY(-50%);">W</div>
                         <div style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%);">E</div>
                         <div id="compass-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 40px; background-color: red; transform-origin: top center;"></div>
-                        <div id="wind-direction-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 30px; background-color: #3399ff; transform-origin: center center; opacity: 0.8;"></div>
+                        <div id="wind-direction-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 30px; background-color: #3399ff; transform-origin: top center; opacity: 0.8;"></div>
                     </div>
                 </div>
                 <div style="font-size: 10px; display: flex; justify-content: center; margin-bottom: 15px;">
