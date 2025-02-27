@@ -2,10 +2,10 @@
 
 
 ## UI
-- debug button and window.
 - Add vector informations system to show forces acting on boat
 - debug wind particilces
 - sea animation
+- camera modes.
 
 
 ## Physics
