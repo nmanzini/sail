@@ -13,7 +13,7 @@ class World {
         this.windSpeed = 5.0; // Increased default wind speed for better sailing
         this.windParticles = null;
         this.particleSystem = null;
-        this.windVisibilityRadius = 500; // Radius around camera where wind particles are visible
+        this.windVisibilityRadius = 800; // Increased radius for wider view of wind field
         
         // Initialize the world
         this.init();
@@ -176,7 +176,7 @@ class World {
      */
     createWindParticles() {
         // Create particle geometry
-        const particleCount = 100; // Increased for better density around camera
+        const particleCount = 1000; // Many more particles
         const particles = new THREE.BufferGeometry();
         
         // Create arrays for particle positions and velocities
@@ -190,27 +190,26 @@ class World {
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
                 
-                // Random position in a sphere around camera
-                const radius = Math.sqrt(Math.random()) * this.windVisibilityRadius * 0.8; // Keep particles closer
+                // Random position in a large cylinder around camera
+                const radius = Math.pow(Math.random(), 0.5) * this.windVisibilityRadius; // More even distribution
                 const theta = Math.random() * Math.PI * 2;
-                const phi = Math.random() * Math.PI * 2;
                 
-                positions[i3] = cameraPos.x + radius * Math.sin(phi) * Math.cos(theta);
-                positions[i3 + 1] = Math.random() * 30 + 10;  // Lower height range for better visibility
-                positions[i3 + 2] = cameraPos.z + radius * Math.cos(phi);
+                positions[i3] = cameraPos.x + radius * Math.cos(theta);
+                positions[i3 + 1] = Math.random() * 40 + 2;  // Wider height range (2-42 units)
+                positions[i3 + 2] = cameraPos.z + radius * Math.sin(theta);
                 
-                // Set initial velocity based on wind direction and speed
-                velocities[i3] = this.windDirection.x * this.windSpeed;
-                velocities[i3 + 1] = 0;
-                velocities[i3 + 2] = this.windDirection.z * this.windSpeed;
+                // Set initial velocity based on wind direction and speed with subtle variation
+                velocities[i3] = this.windDirection.x * this.windSpeed + (Math.random() - 0.5) * 1;
+                velocities[i3 + 1] = (Math.random() - 0.5) * 0.2; // Very slight vertical movement
+                velocities[i3 + 2] = this.windDirection.z * this.windSpeed + (Math.random() - 0.5) * 1;
                 
-                // Calculate initial opacity based on distance
+                // Calculate initial opacity based on distance with gentler falloff
                 const dx = positions[i3] - cameraPos.x;
                 const dy = positions[i3 + 1] - cameraPos.y;
                 const dz = positions[i3 + 2] - cameraPos.z;
                 const distanceSquared = dx * dx + dy * dy + dz * dz;
                 const normalizedDistance = Math.sqrt(distanceSquared) / this.windVisibilityRadius;
-                opacities[i] = Math.max(0.2, 1.0 - normalizedDistance); // Minimum opacity of 0.2
+                opacities[i] = Math.max(0.15, 1.0 - normalizedDistance * 0.85); // Lower minimum opacity, gentler falloff
             }
         }
         
@@ -226,16 +225,16 @@ class World {
             count: particleCount
         };
         
-        // Create simple point material instead of shader material for testing
+        // Create particle material with smaller, more subtle particles
         const particleMaterial = new THREE.PointsMaterial({
             color: 0xFFFFFF,
-            size: 0.75,
+            size: 0.5, // Smaller particles
             transparent: true,
-            opacity: 0.8,
+            opacity: 0.6, // Lower base opacity
             blending: THREE.AdditiveBlending,
             sizeAttenuation: true,
-            depthTest: false, // Disable depth testing to make particles visible from all angles
-            depthWrite: false // Prevent particles from affecting depth buffer
+            depthTest: false,
+            depthWrite: false
         });
         
         // Create particle system
@@ -255,78 +254,56 @@ class World {
         const opacities = this.windParticles.opacities;
         const count = this.windParticles.count;
         const cameraPosition = this.camera.position.clone();
-        const radiusSquared = this.windVisibilityRadius * this.windVisibilityRadius;
         
         // Calculate camera view direction
         const cameraDirection = new THREE.Vector3(0, 0, -1);
         cameraDirection.applyQuaternion(this.camera.quaternion);
         
-        // Update velocities based on current wind direction
         for (let i = 0; i < count; i++) {
             const i3 = i * 3;
             
-            // Calculate distance to camera (squared, for efficiency)
+            // Calculate distance to camera
             const dx = positions[i3] - cameraPosition.x;
             const dy = positions[i3 + 1] - cameraPosition.y;
             const dz = positions[i3 + 2] - cameraPosition.z;
             const distanceSquared = dx * dx + dy * dy + dz * dz;
-            
-            // Calculate opacity based on distance
-            const normalizedDistance = Math.sqrt(distanceSquared) / this.windVisibilityRadius;
-            
-            // Calculate vector from camera to particle
-            const toParticle = new THREE.Vector3(dx, dy, dz).normalize();
-            
-            // Calculate the dot product between camera direction and particle direction
-            // This gives us how much the particle is in front of or behind the camera
-            // 1 = directly in front, 0 = perpendicular to view, -1 = directly behind
-            const directionFactor = cameraDirection.dot(toParticle);
-            
-            // Adjust visibility based on view angle - increase visibility when behind camera
-            // When directionFactor is negative (particle behind camera), boost visibility
-            const viewAngleBoost = directionFactor < 0 ? Math.abs(directionFactor) * 0.5 : 0;
-            
-            // Calculate final opacity with angle boost to improve visibility when behind
-            opacities[i] = Math.max(0.2, 1.0 - (normalizedDistance * 0.8) + viewAngleBoost);
-            
-            // Update velocity based on wind direction
-            velocities[i3] = this.windDirection.x * this.windSpeed;
-            velocities[i3 + 2] = this.windDirection.z * this.windSpeed;
-            
-            // Add slight random variation for more natural movement
-            velocities[i3] += (Math.random() - 0.5) * 0.8;
-            velocities[i3 + 1] = (Math.random() - 0.5) * 0.3;
-            velocities[i3 + 2] += (Math.random() - 0.5) * 0.8;
+            const distance = Math.sqrt(distanceSquared);
             
             // Update positions based on velocity
             positions[i3] += velocities[i3] * deltaTime;
             positions[i3 + 1] += velocities[i3 + 1] * deltaTime;
             positions[i3 + 2] += velocities[i3 + 2] * deltaTime;
             
-            // Check if particle is too far or outside height range
-            // Also keep particles that are behind the camera
-            const isBehindCamera = directionFactor < -0.7; // Particle is significantly behind camera
-            const isOutOfRange = normalizedDistance >= 1.0 || positions[i3 + 1] < 5 || positions[i3 + 1] > 40;
-            
-            // Only reset particles that are out of range and not behind camera
-            if (isOutOfRange && !isBehindCamera) {
-                // Reset position to a random location within the visibility radius of camera
-                const radius = Math.sqrt(Math.random()) * (this.windVisibilityRadius * 0.5);
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.random() * Math.PI * 2;
+            // Reset particle if too far from camera or out of height range
+            if (distance > this.windVisibilityRadius * 0.95 || 
+                positions[i3 + 1] < 1 || positions[i3 + 1] > 45) {
                 
-                // Calculate position in spherical coordinates relative to camera
-                positions[i3] = cameraPosition.x + radius * Math.sin(phi) * Math.cos(theta);
-                positions[i3 + 1] = Math.random() * 30 + 10; // Lower height range
-                positions[i3 + 2] = cameraPosition.z + radius * Math.cos(phi);
+                // Reset position to upwind side of visibility area with more spread
+                const radius = Math.pow(Math.random(), 0.5) * (this.windVisibilityRadius * 0.7);
+                const spreadAngle = Math.PI * 0.75; // 135 degree spread for more natural flow
+                const theta = Math.atan2(-this.windDirection.z, -this.windDirection.x) + 
+                             (Math.random() - 0.5) * spreadAngle;
                 
-                // Reset velocity with slight randomness
-                velocities[i3] = this.windDirection.x * this.windSpeed + (Math.random() - 0.5) * 0.5;
+                positions[i3] = cameraPosition.x + radius * Math.cos(theta);
+                positions[i3 + 1] = Math.random() * 40 + 2;
+                positions[i3 + 2] = cameraPosition.z + radius * Math.sin(theta);
+                
+                // Reset velocity with wind direction and subtle randomness
+                velocities[i3] = this.windDirection.x * this.windSpeed + (Math.random() - 0.5) * 1;
                 velocities[i3 + 1] = (Math.random() - 0.5) * 0.2;
-                velocities[i3 + 2] = this.windDirection.z * this.windSpeed + (Math.random() - 0.5) * 0.5;
+                velocities[i3 + 2] = this.windDirection.z * this.windSpeed + (Math.random() - 0.5) * 1;
                 
-                // Reset opacity since particle is closer now
-                opacities[i] = 1.0;
+                // Reset opacity with distance consideration
+                const newDistance = radius / this.windVisibilityRadius;
+                opacities[i] = Math.max(0.15, 1.0 - newDistance * 0.85);
+            } else {
+                // Update opacity based on distance with gentler falloff
+                const normalizedDistance = distance / this.windVisibilityRadius;
+                opacities[i] = Math.max(0.15, 1.0 - normalizedDistance * 0.85);
+                
+                // Very subtle velocity adjustment
+                velocities[i3] += (this.windDirection.x * this.windSpeed - velocities[i3]) * deltaTime * 0.2;
+                velocities[i3 + 2] += (this.windDirection.z * this.windSpeed - velocities[i3 + 2]) * deltaTime * 0.2;
             }
         }
         
