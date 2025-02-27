@@ -16,9 +16,6 @@ class UI {
         this.compass = null;
         this.speedometer = null;
 
-        // Debug panel state - explicitly set to false initially
-        this.debugPanelVisible = false;
-
         // Element references
         this.elements = {};
 
@@ -44,10 +41,6 @@ class UI {
                     transform: scale(0.8);
                     transform-origin: top left;
                 }
-                #debug-panel {
-                    transform: scale(0.8);
-                    transform-origin: top left;
-                }
                 #camera-button {
                     transform: scale(0.8);
                     transform-origin: bottom right;
@@ -59,10 +52,6 @@ class UI {
                     transform-origin: top right;
                 }
                 #controls-panel {
-                    transform: scale(0.7);
-                    transform-origin: top left;
-                }
-                #debug-panel {
                     transform: scale(0.7);
                     transform-origin: top left;
                 }
@@ -84,7 +73,6 @@ class UI {
         this.createControls();
         this.createCameraButton();
         this.createControlsPanel();
-        this.createDebugPanel();
 
         // Store references to all elements we'll need to update
         this.cacheElementReferences();
@@ -93,7 +81,7 @@ class UI {
         this.setupKeyboardControls();
 
         // Log that UI has been initialized for debugging
-        console.log('UI initialized successfully. Debug panel is visible.');
+        console.log('UI initialized successfully.');
     }
     
     /**
@@ -179,8 +167,6 @@ class UI {
             sailAngleValue: document.getElementById('sail-angle-value'),
             rudderAngleSlider: document.getElementById('rudder-angle-slider'),
             rudderAngleValue: document.getElementById('rudder-angle-value'),
-            debugPanel: document.getElementById('debug-panel'),
-            debugButton: document.getElementById('debug-button')
         };
     }
 
@@ -188,156 +174,21 @@ class UI {
      * Create a debug button that toggles the debug panel
      */
     createDebugButton() {
-        const debugButton = document.createElement('div');
-        debugButton.id = 'debug-button';
-        debugButton.style.position = 'absolute';
-        debugButton.style.top = '10px';
-        debugButton.style.left = '10px';
-        debugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        debugButton.style.color = 'white';
-        debugButton.style.padding = '8px 12px';
-        debugButton.style.borderRadius = '5px';
-        debugButton.style.cursor = 'pointer';
-        debugButton.style.fontSize = '14px';
-        debugButton.style.zIndex = '1000';
-        debugButton.style.pointerEvents = 'auto'; // Ensure it's clickable
-        debugButton.style.userSelect = 'none'; // Prevent text selection
-        debugButton.textContent = 'Debug';
-        debugButton.style.transition = 'all 0.3s ease';
-
-        // Add a more visible hover effect
-        debugButton.addEventListener('mouseover', () => {
-            if (!this.debugPanelVisible) {
-                debugButton.style.backgroundColor = 'rgba(50, 50, 50, 0.9)';
-            }
-        });
-
-        debugButton.addEventListener('mouseout', () => {
-            if (!this.debugPanelVisible) {
-                debugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            }
-        });
-
-        // Add active state for better UX
-        debugButton.addEventListener('mousedown', () => {
-            debugButton.style.backgroundColor = 'rgba(100, 100, 100, 0.9)';
-        });
-
-        debugButton.addEventListener('mouseup', () => {
-            if (!this.debugPanelVisible) {
-                debugButton.style.backgroundColor = 'rgba(50, 50, 50, 0.9)';
-            } else {
-                debugButton.style.backgroundColor = 'rgba(60, 100, 180, 0.9)';
-            }
-        });
-
-        debugButton.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent click from propagating
-            this.toggleDebugPanel();
-
-            // Update button appearance based on panel visibility
-            if (this.debugPanelVisible) {
-                debugButton.style.backgroundColor = 'rgba(60, 100, 180, 0.9)';
-            } else {
-                debugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            }
-        });
-
-        document.body.appendChild(debugButton);
-        this.elements.debugButton = debugButton;
+        // This method is now empty as the debug button is removed
     }
 
     /**
      * Toggle debug panel visibility
      */
     toggleDebugPanel() {
-        this.debugPanelVisible = !this.debugPanelVisible;
-        this.elements.debugPanel.style.display = this.debugPanelVisible ? 'block' : 'none';
+        // This method is now empty as the debug panel is removed
     }
 
     /**
      * Create the debug panel containing all the debug visualizations
      */
     createDebugPanel() {
-        const debugPanel = document.createElement('div');
-        debugPanel.id = 'debug-panel';
-        debugPanel.style.position = 'absolute';
-        debugPanel.style.top = '10px';
-        debugPanel.style.left = '10px';
-        debugPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        debugPanel.style.color = 'white';
-        debugPanel.style.padding = '15px';
-        debugPanel.style.borderRadius = '8px';
-        debugPanel.style.fontSize = '14px';
-        debugPanel.style.maxHeight = '90vh';
-        debugPanel.style.overflowY = 'auto';
-        debugPanel.style.zIndex = '999';
-        debugPanel.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
-        debugPanel.style.transition = 'all 0.2s ease-out';
-        debugPanel.style.width = 'auto';
-
-        // Create header
-        const header = document.createElement('div');
-        header.style.display = 'flex';
-        header.style.justifyContent = 'space-between';
-        header.style.alignItems = 'center';
-        header.style.cursor = 'pointer';
-        header.style.userSelect = 'none';
-        header.style.marginBottom = '10px';
-
-        const title = document.createElement('span');
-        title.textContent = 'Debug Information';
-        title.style.fontWeight = 'bold';
-        header.appendChild(title);
-
-        const collapseIcon = document.createElement('span');
-        collapseIcon.textContent = '+';
-        collapseIcon.style.fontSize = '20px';
-        collapseIcon.style.fontWeight = 'bold';
-        collapseIcon.style.marginLeft = '10px';
-        header.appendChild(collapseIcon);
-
-        debugPanel.appendChild(header);
-
-        // Create content container
-        const debugContent = document.createElement('div');
-        debugContent.id = 'debug-content';
-        debugContent.style.display = 'none';
-        debugContent.style.marginTop = '10px';
-        debugPanel.appendChild(debugContent);
-
-        // Add click handler for collapsing
-        header.addEventListener('click', () => {
-            const isVisible = debugContent.style.display === 'block';
-            debugContent.style.display = isVisible ? 'none' : 'block';
-            collapseIcon.textContent = isVisible ? '+' : '−';
-            
-            // Update visibility flag for the update method
-            this.debugPanelVisible = !isVisible;
-            
-            // Update controls panel position
-            const controlsPanel = document.getElementById('controls-panel');
-            if (controlsPanel) {
-                const debugPanelHeight = debugPanel.offsetHeight;
-                controlsPanel.style.top = `${debugPanelHeight + 10}px`;
-            }
-            
-            // Immediately update content if expanding
-            if (!isVisible) {
-                this.update();
-                // Update controls position after content is updated
-                setTimeout(() => {
-                    const debugPanelHeight = debugPanel.offsetHeight;
-                    if (controlsPanel) {
-                        controlsPanel.style.top = `${debugPanelHeight + 10}px`;
-                    }
-                }, 0);
-            }
-        });
-
-        document.body.appendChild(debugPanel);
-        this.elements.debugPanel = debugPanel;
-        this.debugPanelVisible = false;
+        // This method is now empty as the debug panel is removed
     }
 
     /**
@@ -835,13 +686,13 @@ class UI {
         controlsPanel.id = 'controls-panel';
         controlsPanel.style.position = 'absolute';
         controlsPanel.style.left = '10px';
-        controlsPanel.style.top = '50px'; // Start below the debug panel header
+        controlsPanel.style.top = '10px'; // Set directly to top of screen
         controlsPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         controlsPanel.style.color = 'white';
         controlsPanel.style.padding = '15px';
         controlsPanel.style.borderRadius = '8px';
         controlsPanel.style.fontSize = '14px';
-        controlsPanel.style.zIndex = '998'; // Slightly lower than debug panel
+        controlsPanel.style.zIndex = '998';
         controlsPanel.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
         controlsPanel.style.transition = 'all 0.2s ease-out';
         controlsPanel.style.width = 'auto';
@@ -874,10 +725,8 @@ class UI {
         content.innerHTML = `
             <div style="margin-bottom: 15px;">
                 <h4 style="margin: 0 0 10px 0; color: #3399ff;">Keyboard Controls</h4>
-                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">A/Left Arrow:</span> Turn boat left</p>
-                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">D/Right Arrow:</span> Turn boat right</p>
-                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">W/Up Arrow:</span> Increase sail angle</p>
-                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">S/Down Arrow:</span> Decrease sail angle</p>
+                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">A ←  /  D →</span> Turn rudder left/right</p>
+                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">W ↑  /  S ↓</span> Increase/decrease sail angle</p>
                 <p style="margin: 5px 0;"><span style="color: #a5d8ff;">C:</span> Toggle camera view</p>
             </div>
             <div style="margin-bottom: 15px;">
@@ -886,17 +735,16 @@ class UI {
                 <p style="margin: 5px 0;">Right click + drag: Pan camera</p>
                 <p style="margin: 5px 0;">Scroll: Zoom camera</p>
             </div>
-            <div>
-                <h4 style="margin: 0 0 10px 0; color: #3399ff;">Mobile Controls</h4>
-                <p style="margin: 5px 0;">Left joystick: Control rudder (steering)</p>
-                <p style="margin: 5px 0;">Right joystick: Control sail angle</p>
-            </div>
         `;
 
         controlsPanel.appendChild(content);
 
-        // Add collapse functionality
-        let isCollapsed = false;
+        // Start in collapsed state
+        let isCollapsed = true;
+        content.style.display = 'none';
+        collapseIcon.textContent = '+';
+
+        // Toggle function for expand/collapse
         const toggleCollapse = () => {
             isCollapsed = !isCollapsed;
             content.style.display = isCollapsed ? 'none' : 'block';
@@ -904,26 +752,6 @@ class UI {
         };
 
         header.addEventListener('click', toggleCollapse);
-
-        // Function to update position based on debug panel
-        const updatePosition = () => {
-            const debugPanel = document.getElementById('debug-panel');
-            if (debugPanel) {
-                const debugRect = debugPanel.getBoundingClientRect();
-                controlsPanel.style.top = `${debugRect.bottom + 10}px`;
-            }
-        };
-
-        // Initial position update
-        setTimeout(updatePosition, 0);
-
-        // Update position when debug panel is toggled
-        const debugButton = document.getElementById('debug-button');
-        if (debugButton) {
-            debugButton.addEventListener('click', () => {
-                setTimeout(updatePosition, 200); // Wait for debug panel animation
-            });
-        }
 
         document.body.appendChild(controlsPanel);
     }
@@ -955,50 +783,6 @@ class UI {
         const speedValue = document.getElementById('speed-value');
         if (speedValue) {
             speedValue.textContent = `${this.boat.getSpeedInKnots().toFixed(1)} knots`;
-        }
-
-        // Update debug panel
-        const debugContent = document.getElementById('debug-content');
-        if (debugContent && this.debugPanelVisible) {
-            // Format vector for display
-            const formatVector = (v) => {
-                return `[${v.x.toFixed(2)}, ${v.y.toFixed(2)}, ${v.z.toFixed(2)}] (mag: ${v.length().toFixed(2)})`;
-            };
-
-            // Calculate turn rate
-            const minSpeedFactor = 0.5;
-            const speedFactor = minSpeedFactor + (this.boat.speed * 0.5);
-            const turnRate = -1 * this.boat.rudderAngle * speedFactor * this.boat.rudderEfficiency / this.boat.inertia;
-
-            // Get drag force
-            const dragForce = this.boat.calculateDragForce();
-
-            debugContent.innerHTML = `
-                <div style="margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 10px 0; color: #3399ff;">Boat Information</h4>
-                    <p>Position: <span style="color: #99ccff">${formatVector(this.boat.position)}</span></p>
-                    <p>Speed: <span style="color: #99ccff">${this.boat.speed.toFixed(2)} m/s (${this.boat.getSpeedInKnots().toFixed(2)} knots)</span></p>
-                    <p>Heading: <span style="color: #99ccff">${this.boat.getHeadingInDegrees().toFixed(1)}°</span></p>
-                    <p>Sail Angle: <span style="color: #99ccff">${(this.boat.sailAngle * 180 / Math.PI).toFixed(1)}°</span></p>
-                    <p>Rudder Angle: <span style="color: #99ccff">${(this.boat.rudderAngle * 180 / Math.PI).toFixed(1)}°</span></p>
-                    <p>Heel Angle: <span style="color: #99ccff">${this.boat.getHeelAngleInDegrees().toFixed(1)}°</span></p>
-                    <p>Turn Rate: <span style="color: #99ccff">${turnRate.toFixed(5)} rad/s (${(turnRate * 180 / Math.PI).toFixed(2)}°/s)</span></p>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 10px 0; color: #3399ff;">Wind Information</h4>
-                    <p>Wind Direction: <span style="color: #ffff99">${formatVector(this.world.getWindDirection())}</span></p>
-                    <p>Wind Speed: <span style="color: #ffff99">${this.world.getWindSpeed().toFixed(2)} m/s</span></p>
-                </div>
-
-                <div>
-                    <h4 style="margin: 0 0 10px 0; color: #3399ff;">Forces</h4>
-                    <p>Sail Force: <span style="color: #ff9999">${formatVector(this.boat.sailForce)}</span></p>
-                    <p>Forward Force: <span style="color: #99ff99">${formatVector(this.boat.forwardForce)}</span></p>
-                    <p>Lateral Force: <span style="color: #9999ff">${formatVector(this.boat.lateralForce)}</span></p>
-                    <p>Drag Force: <span style="color: #ff99ff">${formatVector(dragForce)}</span></p>
-                </div>
-            `;
         }
     }
 }
