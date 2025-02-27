@@ -256,6 +256,10 @@ class World {
         const cameraPosition = this.camera.position.clone();
         const radiusSquared = this.windVisibilityRadius * this.windVisibilityRadius;
         
+        // Calculate camera view direction
+        const cameraDirection = new THREE.Vector3(0, 0, -1);
+        cameraDirection.applyQuaternion(this.camera.quaternion);
+        
         // Update velocities based on current wind direction
         for (let i = 0; i < count; i++) {
             const i3 = i * 3;
@@ -268,7 +272,21 @@ class World {
             
             // Calculate opacity based on distance
             const normalizedDistance = Math.sqrt(distanceSquared) / this.windVisibilityRadius;
-            opacities[i] = Math.max(0.2, 1.0 - normalizedDistance * 0.8); // Slower fade out and minimum opacity
+            
+            // Calculate vector from camera to particle
+            const toParticle = new THREE.Vector3(dx, dy, dz).normalize();
+            
+            // Calculate the dot product between camera direction and particle direction
+            // This gives us how much the particle is in front of or behind the camera
+            // 1 = directly in front, 0 = perpendicular to view, -1 = directly behind
+            const directionFactor = cameraDirection.dot(toParticle);
+            
+            // Adjust visibility based on view angle - increase visibility when behind camera
+            // When directionFactor is negative (particle behind camera), boost visibility
+            const viewAngleBoost = directionFactor < 0 ? Math.abs(directionFactor) * 0.5 : 0;
+            
+            // Calculate final opacity with angle boost to improve visibility when behind
+            opacities[i] = Math.max(0.2, 1.0 - (normalizedDistance * 0.8) + viewAngleBoost);
             
             // Update velocity based on wind direction
             velocities[i3] = this.windDirection.x * this.windSpeed;
@@ -284,8 +302,13 @@ class World {
             positions[i3 + 1] += velocities[i3 + 1] * deltaTime;
             positions[i3 + 2] += velocities[i3 + 2] * deltaTime;
             
-            // Check if particle is too far or completely transparent
-            if (normalizedDistance >= 1.0 || positions[i3 + 1] < 5 || positions[i3 + 1] > 40) {
+            // Check if particle is too far or outside height range
+            // Also keep particles that are behind the camera
+            const isBehindCamera = directionFactor < -0.7; // Particle is significantly behind camera
+            const isOutOfRange = normalizedDistance >= 1.0 || positions[i3 + 1] < 5 || positions[i3 + 1] > 40;
+            
+            // Only reset particles that are out of range and not behind camera
+            if (isOutOfRange && !isBehindCamera) {
                 // Reset position to a random location within the visibility radius of camera
                 const radius = Math.sqrt(Math.random()) * (this.windVisibilityRadius * 0.5);
                 const theta = Math.random() * Math.PI * 2;
