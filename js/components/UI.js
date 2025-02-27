@@ -467,6 +467,8 @@ class UI {
             }
             windControlsVisible = !windControlsVisible;  // Toggle the state
             updateSpeedometerContent(windControlsVisible);
+            // Update element references after toggling
+            this.cacheElementReferences();
         });
 
         document.body.appendChild(this.speedometer);
@@ -926,16 +928,19 @@ class UI {
         const windDirection = this.world.getWindDirection();
         const windAngle = Math.atan2(windDirection.x, windDirection.z) * 180 / Math.PI;
 
-        // Update wind direction needle in compass
-        if (this.elements.windDirectionNeedle) {
-            this.elements.windDirectionNeedle.style.transform = `rotate(${windAngle}deg)`;
+        // Update wind direction needle in compass - get element directly
+        const windDirectionNeedle = document.getElementById('wind-direction-needle');
+        if (windDirectionNeedle) {
+            windDirectionNeedle.style.transform = `rotate(${windAngle}deg)`;
         }
 
         // Update compass
         const heading = this.boat.getHeadingInDegrees();
 
-        if (this.elements.compassNeedle) {
-            this.elements.compassNeedle.style.transform = `rotate(${-heading}deg)`;
+        // Get compass needle directly
+        const compassNeedle = document.getElementById('compass-needle');
+        if (compassNeedle) {
+            compassNeedle.style.transform = `rotate(${-heading}deg)`;
         }
 
         // Update speedometer - directly update the speed value element
