@@ -34,14 +34,8 @@ class UI {
         this.createSpeedometer();
         this.createControls();
         this.createCameraButton();
-        this.createFloatingControlsInfo();
-
-        // Debug UI elements (hidden by default)
-        this.createDebugButton();
+        this.createControlsPanel();
         this.createDebugPanel();
-
-        // Add a more prominent wind controls button directly on the UI
-        this.createWindControlsButton();
 
         // Store references to all elements we'll need to update
         this.cacheElementReferences();
@@ -49,13 +43,8 @@ class UI {
         // Set up keyboard controls
         this.setupKeyboardControls();
 
-        // Make sure debug panel is hidden initially
-        if (this.elements.debugPanel) {
-            this.elements.debugPanel.style.display = 'none';
-        }
-
         // Log that UI has been initialized for debugging
-        console.log('UI initialized successfully. Debug panel and wind controls should be available.');
+        console.log('UI initialized successfully. Debug panel is visible.');
     }
     
     /**
@@ -221,113 +210,104 @@ class UI {
         const debugPanel = document.createElement('div');
         debugPanel.id = 'debug-panel';
         debugPanel.style.position = 'absolute';
-        debugPanel.style.top = '50px';
+        debugPanel.style.top = '10px';
         debugPanel.style.left = '10px';
-        debugPanel.style.width = '300px';
         debugPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         debugPanel.style.color = 'white';
         debugPanel.style.padding = '15px';
-        debugPanel.style.borderRadius = '5px';
+        debugPanel.style.borderRadius = '8px';
         debugPanel.style.fontSize = '14px';
-        debugPanel.style.display = 'none'; // Hidden by default
-        debugPanel.style.maxHeight = '80vh';
+        debugPanel.style.maxHeight = '90vh';
         debugPanel.style.overflowY = 'auto';
         debugPanel.style.zIndex = '999';
-        debugPanel.style.pointerEvents = 'auto'; // Ensure contents are interactive
-        debugPanel.style.transition = 'all 0.3s ease';
         debugPanel.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        debugPanel.style.transition = 'all 0.2s ease-out';
+        debugPanel.style.width = 'auto';
 
-        // Add a title for the debug panel
-        const title = document.createElement('h3');
+        // Create header
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.alignItems = 'center';
+        header.style.cursor = 'pointer';
+        header.style.userSelect = 'none';
+        header.style.marginBottom = '10px';
+
+        const title = document.createElement('span');
         title.textContent = 'Debug Information';
-        title.style.marginTop = '0';
-        title.style.marginBottom = '15px';
-        debugPanel.appendChild(title);
+        title.style.fontWeight = 'bold';
+        header.appendChild(title);
 
-        // Add basic debug information
-        this.createInfoPanel(debugPanel);
-        this.createWindIndicator(debugPanel);
-        this.createControlsInfo(debugPanel);
+        const collapseIcon = document.createElement('span');
+        collapseIcon.textContent = '+';
+        collapseIcon.style.fontSize = '20px';
+        collapseIcon.style.fontWeight = 'bold';
+        collapseIcon.style.marginLeft = '10px';
+        header.appendChild(collapseIcon);
 
-        // Add wind controls section
-        this.createWindControls(debugPanel);
+        debugPanel.appendChild(header);
+
+        // Create content container
+        const debugContent = document.createElement('div');
+        debugContent.id = 'debug-content';
+        debugContent.style.display = 'none';
+        debugContent.style.marginTop = '10px';
+        debugPanel.appendChild(debugContent);
+
+        // Add click handler for collapsing
+        header.addEventListener('click', () => {
+            const isVisible = debugContent.style.display === 'block';
+            debugContent.style.display = isVisible ? 'none' : 'block';
+            collapseIcon.textContent = isVisible ? '+' : '−';
+            
+            // Update visibility flag for the update method
+            this.debugPanelVisible = !isVisible;
+            
+            // Update controls panel position
+            const controlsPanel = document.getElementById('controls-panel');
+            if (controlsPanel) {
+                const debugPanelHeight = debugPanel.offsetHeight;
+                controlsPanel.style.top = `${debugPanelHeight + 10}px`;
+            }
+            
+            // Immediately update content if expanding
+            if (!isVisible) {
+                this.update();
+                // Update controls position after content is updated
+                setTimeout(() => {
+                    const debugPanelHeight = debugPanel.offsetHeight;
+                    if (controlsPanel) {
+                        controlsPanel.style.top = `${debugPanelHeight + 10}px`;
+                    }
+                }, 0);
+            }
+        });
 
         document.body.appendChild(debugPanel);
         this.elements.debugPanel = debugPanel;
+        this.debugPanelVisible = false;
     }
 
     /**
      * Create the main information panel
      */
     createInfoPanel(parentElement) {
-        const infoPanel = document.createElement('div');
-        infoPanel.id = 'info';
-        infoPanel.style.marginBottom = '15px';
-        infoPanel.style.fontSize = '14px';
-
-        infoPanel.innerHTML = `
-            <h3>Simple Sailing Simulator</h3>
-            <p>Boat Status: <span id="boat-status">Static</span></p>
-            <p>Wind from: <span id="wind-direction">South</span></p>
-        `;
-
-        parentElement.appendChild(infoPanel);
-        this.infoPanel = infoPanel;
+        // This method is now empty as all info is in the debug panel
     }
 
     /**
      * Create the wind direction indicator
      */
     createWindIndicator(parentElement) {
-        const windIndicator = document.createElement('div');
-        windIndicator.id = 'wind-indicator';
-        windIndicator.style.marginBottom = '15px';
-        windIndicator.style.fontSize = '14px';
-        windIndicator.style.display = 'flex';
-        windIndicator.style.alignItems = 'center';
-
-        windIndicator.innerHTML = `
-            Wind from: <span id="wind-direction-top">South</span>
-            <div id="wind-arrow"></div>
-        `;
-
-        parentElement.appendChild(windIndicator);
-        this.windIndicator = windIndicator;
-
-        this.windArrow = document.getElementById('wind-arrow');
-        if (this.windArrow) {
-            this.windArrow.style.width = '0';
-            this.windArrow.style.height = '0';
-            this.windArrow.style.borderLeft = '10px solid transparent';
-            this.windArrow.style.borderRight = '10px solid transparent';
-            this.windArrow.style.borderBottom = '20px solid white';
-            this.windArrow.style.marginLeft = '10px';
-            this.windArrow.style.transformOrigin = 'center bottom';
-        }
+        // This method is now empty as wind info is in the debug panel
     }
 
     /**
      * Create the controls information panel
      */
     createControlsInfo(parentElement) {
-        const controlsInfo = document.createElement('div');
-        controlsInfo.id = 'controls-info';
-        controlsInfo.style.fontSize = '14px';
-
-        controlsInfo.innerHTML = `
-            <p>Mouse Controls:</p>
-            <p>Left Click + Drag: Rotate camera</p>
-            <p>Right Click + Drag: Pan camera</p>
-            <p>Scroll: Zoom in/out</p>
-            <p>Keyboard Controls:</p>
-            <p>A/D: Adjust sail angle</p>
-            <p>Left/Right Arrow: Adjust rudder</p>
-        `;
-
-        parentElement.appendChild(controlsInfo);
-        this.controlsInfo = controlsInfo;
+        // This method is now empty as controls info is in the debug panel
     }
-
 
     /**
      * Create a speedometer display
@@ -339,32 +319,106 @@ class UI {
         this.speedometer.style.top = '10px';
         this.speedometer.style.right = '10px';
         this.speedometer.style.color = 'white';
-        this.speedometer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        this.speedometer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         this.speedometer.style.padding = '10px';
-        this.speedometer.style.borderRadius = '5px';
+        this.speedometer.style.borderRadius = '8px';
         this.speedometer.style.fontSize = '14px';
-        this.speedometer.style.pointerEvents = 'none';
-        this.speedometer.style.textAlign = 'center';
+        this.speedometer.style.width = '130px';
+        this.speedometer.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        this.speedometer.style.cursor = 'pointer';
+        this.speedometer.title = 'Click to toggle wind controls';
 
-        this.speedometer.innerHTML = `
-            <div style="margin-bottom: 10px;">
-                <div id="speed-value" style="font-size: 24px; font-weight: bold; text-align: center;">0.0 knots</div>
-            </div>
-            <div style="display: flex; align-items: center; justify-content: center;">
-                <div id="compass-display" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid white; position: relative; margin: 0 auto;">
-                    <div style="position: absolute; top: 5px; left: 50%; transform: translateX(-50%);">N</div>
-                    <div style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);">S</div>
-                    <div style="position: absolute; left: 5px; top: 50%; transform: translateY(-50%);">W</div>
-                    <div style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%);">E</div>
-                    <div id="compass-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 32px; background-color: red; transform-origin: top center;"></div>
-                    <div id="wind-direction-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 24px; background-color: #3399ff; transform-origin: center center; opacity: 0.8;"></div>
+        let windControlsVisible = true;  // Changed to let since we'll modify it
+        const updateSpeedometerContent = (showWindControls) => {
+            this.speedometer.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <div id="speed-value" style="font-size: 24px; font-weight: bold; text-align: center;">0.0 knots</div>
                 </div>
-            </div>
-            <div style="font-size: 10px; display: flex; justify-content: center; margin-top: 5px;">
-                <span style="color: red; margin-right: 10px;">■ Boat</span>
-                <span style="color: #3399ff;">■ Wind</span>
-            </div>
-        `;
+                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+                    <div id="compass-display" style="width: 100px; height: 100px; border-radius: 50%; border: 2px solid white; position: relative; margin: 0 auto;">
+                        <div style="position: absolute; top: 5px; left: 50%; transform: translateX(-50%);">N</div>
+                        <div style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);">S</div>
+                        <div style="position: absolute; left: 5px; top: 50%; transform: translateY(-50%);">W</div>
+                        <div style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%);">E</div>
+                        <div id="compass-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 40px; background-color: red; transform-origin: top center;"></div>
+                        <div id="wind-direction-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 30px; background-color: #3399ff; transform-origin: center center; opacity: 0.8;"></div>
+                    </div>
+                </div>
+                <div style="font-size: 10px; display: flex; justify-content: center; margin-bottom: 15px;">
+                    <span style="color: red; margin-right: 10px;">■ Boat</span>
+                    <span style="color: #3399ff;">■ Wind</span>
+                </div>
+                ${showWindControls ? `
+                <div style="border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 10px;">
+                    <div style="text-align: center; font-size: 10px; color: #666; margin-bottom: 10px;">
+                        Click to hide wind controls
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center; font-size: 12px; margin-bottom: 5px;">
+                            <span style="flex: 1;">Wind Speed:</span>
+                            <span id="wind-speed-value" style="color: #3399ff; min-width: 30px; text-align: right;">${this.world.getWindSpeed().toFixed(1)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: center;">
+                            <input type="range" id="wind-speed" min="0" max="50" step="0.5" value="${this.world.getWindSpeed()}" 
+                                   style="width: 100%; margin-bottom: 10px;">
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; align-items: center; font-size: 12px; margin-bottom: 5px;">
+                            <span style="flex: 1;">Wind Direction:</span>
+                            <span id="wind-dir-value" style="color: #3399ff; min-width: 30px; text-align: right;">0°</span>
+                        </div>
+                        <div style="display: flex; justify-content: center;">
+                            <input type="range" id="wind-dir" min="0" max="360" step="5" value="0" 
+                                   style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+                ` : `
+                <div style="text-align: center; font-size: 10px; color: #666; border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 5px;">
+                    Click to show wind controls
+                </div>
+                `}
+            `;
+
+            if (showWindControls) {
+                // Add event listeners for wind controls
+                const windSpeedSlider = this.speedometer.querySelector('#wind-speed');
+                const windDirSlider = this.speedometer.querySelector('#wind-dir');
+
+                windSpeedSlider.addEventListener('input', () => {
+                    const newSpeed = parseFloat(windSpeedSlider.value);
+                    const currentDirection = this.world.getWindDirection();
+                    this.world.setWind(currentDirection, newSpeed);
+                    document.getElementById('wind-speed-value').textContent = newSpeed.toFixed(1);
+                });
+
+                windDirSlider.addEventListener('input', () => {
+                    const angle = parseFloat(windDirSlider.value) * Math.PI / 180;
+                    const newDirection = new THREE.Vector3(
+                        Math.sin(angle),
+                        0,
+                        Math.cos(angle)
+                    );
+                    const currentSpeed = this.world.getWindSpeed();
+                    this.world.setWind(newDirection, currentSpeed);
+                    document.getElementById('wind-dir-value').textContent = windDirSlider.value + '°';
+                });
+            }
+        };
+
+        // Initial render
+        updateSpeedometerContent(windControlsVisible);
+
+        // Add click handler to toggle wind controls
+        this.speedometer.addEventListener('click', (e) => {
+            // Don't toggle if clicking on the sliders
+            if (e.target.tagName === 'INPUT') {
+                return;
+            }
+            windControlsVisible = !windControlsVisible;  // Toggle the state
+            updateSpeedometerContent(windControlsVisible);
+        });
 
         document.body.appendChild(this.speedometer);
     }
@@ -504,249 +558,10 @@ class UI {
     }
 
     /**
-     * Create wind controls for the debug panel
-     */
-    createWindControls(parentElement) {
-        const windControlsSection = document.createElement('div');
-        windControlsSection.style.marginTop = '20px';
-        windControlsSection.style.padding = '10px';
-        windControlsSection.style.borderTop = '1px solid rgba(255, 255, 255, 0.2)';
-
-        const sectionTitle = document.createElement('h4');
-        sectionTitle.textContent = 'Wind Controls';
-        sectionTitle.style.marginTop = '0';
-        sectionTitle.style.marginBottom = '10px';
-        windControlsSection.appendChild(sectionTitle);
-
-        // Wind Speed Control
-        const windSpeedContainer = document.createElement('div');
-        windSpeedContainer.style.marginBottom = '15px';
-
-        const windSpeedLabel = document.createElement('div');
-        windSpeedLabel.style.display = 'flex';
-        windSpeedLabel.style.justifyContent = 'space-between';
-        windSpeedLabel.style.marginBottom = '5px';
-        windSpeedLabel.innerHTML = `
-            <span>Wind Speed:</span>
-            <span id="debug-wind-speed-value" style="color: #3399ff;">${this.world.getWindSpeed().toFixed(1)}</span>
-        `;
-
-        const windSpeedSlider = document.createElement('input');
-        windSpeedSlider.type = 'range';
-        windSpeedSlider.id = 'debug-wind-speed';
-        windSpeedSlider.min = '0';
-        windSpeedSlider.max = '20';
-        windSpeedSlider.step = '0.5';
-        windSpeedSlider.value = this.world.getWindSpeed();
-        windSpeedSlider.style.width = '100%';
-
-        windSpeedSlider.addEventListener('input', () => {
-            const newSpeed = parseFloat(windSpeedSlider.value);
-            const currentDirection = this.world.getWindDirection();
-            this.world.setWind(currentDirection, newSpeed);
-            document.getElementById('debug-wind-speed-value').textContent = newSpeed.toFixed(1);
-        });
-
-        windSpeedContainer.appendChild(windSpeedLabel);
-        windSpeedContainer.appendChild(windSpeedSlider);
-        windControlsSection.appendChild(windSpeedContainer);
-
-        // Wind Visibility Radius Control
-        const windVisibilityContainer = document.createElement('div');
-        windVisibilityContainer.style.marginBottom = '15px';
-
-        const windVisibilityLabel = document.createElement('div');
-        windVisibilityLabel.style.display = 'flex';
-        windVisibilityLabel.style.justifyContent = 'space-between';
-        windVisibilityLabel.style.marginBottom = '5px';
-        windVisibilityLabel.innerHTML = `
-            <span>Wind Visibility Radius:</span>
-            <span id="debug-wind-visibility-value" style="color: #3399ff;">${this.world.getWindVisibilityRadius().toFixed(0)}</span>
-        `;
-
-        const windVisibilitySlider = document.createElement('input');
-        windVisibilitySlider.type = 'range';
-        windVisibilitySlider.id = 'debug-wind-visibility';
-        windVisibilitySlider.min = '50';
-        windVisibilitySlider.max = '500';
-        windVisibilitySlider.step = '10';
-        windVisibilitySlider.value = this.world.getWindVisibilityRadius();
-        windVisibilitySlider.style.width = '100%';
-
-        windVisibilitySlider.addEventListener('input', () => {
-            const newRadius = parseFloat(windVisibilitySlider.value);
-            this.world.setWindVisibilityRadius(newRadius);
-            document.getElementById('debug-wind-visibility-value').textContent = newRadius.toFixed(0);
-        });
-
-        windVisibilityContainer.appendChild(windVisibilityLabel);
-        windVisibilityContainer.appendChild(windVisibilitySlider);
-        windControlsSection.appendChild(windVisibilityContainer);
-
-        // Wind Direction Control
-        const windDirContainer = document.createElement('div');
-        windDirContainer.style.marginBottom = '15px';
-
-        const currentDir = this.world.getWindDirection();
-        const dirAngle = (Math.atan2(currentDir.x, currentDir.z) * 180 / Math.PI).toFixed(0);
-
-        const windDirLabel = document.createElement('div');
-        windDirLabel.style.display = 'flex';
-        windDirLabel.style.justifyContent = 'space-between';
-        windDirLabel.style.marginBottom = '5px';
-        windDirLabel.innerHTML = `
-            <span>Wind Direction:</span>
-            <span id="debug-wind-dir-value" style="color: #3399ff;">${dirAngle}°</span>
-        `;
-
-        const windDirSlider = document.createElement('input');
-        windDirSlider.type = 'range';
-        windDirSlider.id = 'debug-wind-dir';
-        windDirSlider.min = '0';
-        windDirSlider.max = '360';
-        windDirSlider.step = '5';
-        windDirSlider.value = dirAngle;
-        windDirSlider.style.width = '100%';
-
-        windDirSlider.addEventListener('input', () => {
-            const angle = parseFloat(windDirSlider.value) * Math.PI / 180;
-            const newDirection = new THREE.Vector3(
-                Math.sin(angle),
-                0,
-                Math.cos(angle)
-            );
-            const currentSpeed = this.world.getWindSpeed();
-            this.world.setWind(newDirection, currentSpeed);
-            document.getElementById('debug-wind-dir-value').textContent = windDirSlider.value + '°';
-        });
-
-        windDirContainer.appendChild(windDirLabel);
-        windDirContainer.appendChild(windDirSlider);
-        windControlsSection.appendChild(windDirContainer);
-
-        // Quick wind buttons
-        const windButtonsContainer = document.createElement('div');
-        windButtonsContainer.style.display = 'flex';
-        windButtonsContainer.style.justifyContent = 'space-between';
-
-        const increaseWindBtn = document.createElement('button');
-        increaseWindBtn.textContent = 'Increase Wind';
-        increaseWindBtn.style.flex = '1';
-        increaseWindBtn.style.marginRight = '5px';
-        increaseWindBtn.style.padding = '5px';
-        increaseWindBtn.style.backgroundColor = 'rgba(60, 60, 60, 0.7)';
-        increaseWindBtn.style.border = '1px solid #666';
-        increaseWindBtn.style.color = 'white';
-        increaseWindBtn.style.borderRadius = '3px';
-        increaseWindBtn.style.cursor = 'pointer';
-
-        increaseWindBtn.addEventListener('click', () => {
-            const currentSpeed = this.world.getWindSpeed();
-            const newSpeed = Math.min(20, currentSpeed + 2);
-            const currentDirection = this.world.getWindDirection();
-            this.world.setWind(currentDirection, newSpeed);
-            windSpeedSlider.value = newSpeed;
-            document.getElementById('debug-wind-speed-value').textContent = newSpeed.toFixed(1);
-        });
-
-        const decreaseWindBtn = document.createElement('button');
-        decreaseWindBtn.textContent = 'Decrease Wind';
-        decreaseWindBtn.style.flex = '1';
-        decreaseWindBtn.style.marginLeft = '5px';
-        decreaseWindBtn.style.padding = '5px';
-        decreaseWindBtn.style.backgroundColor = 'rgba(60, 60, 60, 0.7)';
-        decreaseWindBtn.style.border = '1px solid #666';
-        decreaseWindBtn.style.color = 'white';
-        decreaseWindBtn.style.borderRadius = '3px';
-        decreaseWindBtn.style.cursor = 'pointer';
-
-        decreaseWindBtn.addEventListener('click', () => {
-            const currentSpeed = this.world.getWindSpeed();
-            const newSpeed = Math.max(0, currentSpeed - 2);
-            const currentDirection = this.world.getWindDirection();
-            this.world.setWind(currentDirection, newSpeed);
-            windSpeedSlider.value = newSpeed;
-            document.getElementById('debug-wind-speed-value').textContent = newSpeed.toFixed(1);
-        });
-
-        windButtonsContainer.appendChild(increaseWindBtn);
-        windButtonsContainer.appendChild(decreaseWindBtn);
-        windControlsSection.appendChild(windButtonsContainer);
-
-        parentElement.appendChild(windControlsSection);
-    }
-
-    /**
      * Create floating controls info panel
      */
     createFloatingControlsInfo() {
-        const controlsInfo = document.createElement('div');
-        controlsInfo.id = 'controls-info';
-        controlsInfo.style.position = 'absolute';
-        controlsInfo.style.top = '60px';
-        controlsInfo.style.left = '10px';
-        controlsInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        controlsInfo.style.padding = '10px';
-        controlsInfo.style.borderRadius = '5px';
-        controlsInfo.style.color = 'white';
-        controlsInfo.style.zIndex = '100';
-        controlsInfo.style.maxWidth = '300px';
-
-        // Check if mobile
-        const isMobile = window.innerWidth <= 768 || 
-                         ('ontouchstart' in window) ||
-                         (navigator.maxTouchPoints > 0);
-
-        if (isMobile) {
-            controlsInfo.innerHTML = `
-                <div style="font-weight: bold; margin-bottom: 8px;">Controls:</div>
-                <div style="display: grid; grid-template-columns: auto auto; gap: 5px;">
-                    <div>Left Touch Area</div>
-                    <div>Rudder control</div>
-                    <div>Right Touch Area</div>
-                    <div>Sail control</div>
-                    <div>C</div>
-                    <div>Switch camera mode</div>
-                    <div>Touch + Drag</div>
-                    <div>Rotate camera</div>
-                </div>
-            `;
-        } else {
-            controlsInfo.innerHTML = `
-                <div style="font-weight: bold; margin-bottom: 8px;">Controls:</div>
-                <div style="display: grid; grid-template-columns: auto auto; gap: 5px;">
-                    <div>⬅️ ➡️</div>
-                    <div>Rudder control</div>
-                    <div>A D</div>
-                    <div>Sail control</div>
-                    <div>C</div>
-                    <div>Switch camera mode</div>
-                    <div>🖱️ Left + Drag</div>
-                    <div>Rotate camera</div>
-                    <div>🖱️ Right + Drag</div>
-                    <div>Pan camera</div>
-                    <div>🖱️ Scroll</div>
-                    <div>Zoom camera</div>
-                </div>
-            `;
-        }
-
-        // Add event listener to hide controls when tapped
-        controlsInfo.addEventListener('click', () => {
-            controlsInfo.style.display = 'none';
-        });
-
-        // Add a small hint about the tap functionality
-        const tapHint = document.createElement('div');
-        tapHint.textContent = 'Tap to hide';
-        tapHint.style.fontSize = '10px';
-        tapHint.style.textAlign = 'center';
-        tapHint.style.marginTop = '5px';
-        tapHint.style.opacity = '0.7';
-        controlsInfo.appendChild(tapHint);
-
-        document.body.appendChild(controlsInfo);
-        this.controlsInfo = controlsInfo;
+        // Empty method - controls info is now in debug panel
     }
 
     /**
@@ -850,7 +665,9 @@ class UI {
         windSpeedSlider.max = '50';
         windSpeedSlider.step = '0.5';
         windSpeedSlider.value = this.world.getWindSpeed();
-        windSpeedSlider.style.width = '100%';
+        windSpeedSlider.style.width = '50%';
+        windSpeedSlider.style.margin = '0 auto';
+        windSpeedSlider.style.display = 'block';
 
         windSpeedSlider.addEventListener('input', () => {
             const newSpeed = parseFloat(windSpeedSlider.value);
@@ -886,7 +703,9 @@ class UI {
         windDirSlider.max = '360';
         windDirSlider.step = '5';
         windDirSlider.value = dirAngle;
-        windDirSlider.style.width = '100%';
+        windDirSlider.style.width = '50%';
+        windDirSlider.style.margin = '0 auto';
+        windDirSlider.style.display = 'block';
 
         windDirSlider.addEventListener('input', () => {
             const angle = parseFloat(windDirSlider.value) * Math.PI / 180;
@@ -957,38 +776,110 @@ class UI {
     }
 
     /**
+     * Create controls panel
+     */
+    createControlsPanel() {
+        const controlsPanel = document.createElement('div');
+        controlsPanel.id = 'controls-panel';
+        controlsPanel.style.position = 'absolute';
+        controlsPanel.style.left = '10px';
+        controlsPanel.style.top = '50px'; // Start below the debug panel header
+        controlsPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        controlsPanel.style.color = 'white';
+        controlsPanel.style.padding = '15px';
+        controlsPanel.style.borderRadius = '8px';
+        controlsPanel.style.fontSize = '14px';
+        controlsPanel.style.zIndex = '998'; // Slightly lower than debug panel
+        controlsPanel.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        controlsPanel.style.transition = 'all 0.2s ease-out';
+        controlsPanel.style.width = 'auto';
+
+        // Create header with collapse button
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.alignItems = 'center';
+        header.style.marginBottom = '10px';
+        header.style.cursor = 'pointer';
+        header.style.userSelect = 'none';
+
+        const title = document.createElement('span');
+        title.textContent = 'Controls';
+        title.style.fontWeight = 'bold';
+        header.appendChild(title);
+
+        const collapseIcon = document.createElement('span');
+        collapseIcon.textContent = '−';
+        collapseIcon.style.fontSize = '20px';
+        collapseIcon.style.fontWeight = 'bold';
+        collapseIcon.style.marginLeft = '10px';
+        header.appendChild(collapseIcon);
+
+        controlsPanel.appendChild(header);
+
+        const content = document.createElement('div');
+        content.style.marginTop = '10px';
+        content.innerHTML = `
+            <div style="margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0; color: #3399ff;">Keyboard Controls</h4>
+                <p style="margin: 5px 0;">A/D: Adjust sail angle</p>
+                <p style="margin: 5px 0;">Left/Right Arrow: Adjust rudder</p>
+                <p style="margin: 5px 0;">C: Toggle camera view</p>
+            </div>
+            <div>
+                <h4 style="margin: 0 0 10px 0; color: #3399ff;">Mouse Controls</h4>
+                <p style="margin: 5px 0;">Left click + drag: Rotate camera</p>
+                <p style="margin: 5px 0;">Right click + drag: Pan camera</p>
+                <p style="margin: 5px 0;">Scroll: Zoom camera</p>
+            </div>
+        `;
+
+        controlsPanel.appendChild(content);
+
+        // Add collapse functionality
+        let isCollapsed = false;
+        const toggleCollapse = () => {
+            isCollapsed = !isCollapsed;
+            content.style.display = isCollapsed ? 'none' : 'block';
+            collapseIcon.textContent = isCollapsed ? '+' : '−';
+        };
+
+        header.addEventListener('click', toggleCollapse);
+
+        // Function to update position based on debug panel
+        const updatePosition = () => {
+            const debugPanel = document.getElementById('debug-panel');
+            if (debugPanel) {
+                const debugRect = debugPanel.getBoundingClientRect();
+                controlsPanel.style.top = `${debugRect.bottom + 10}px`;
+            }
+        };
+
+        // Initial position update
+        setTimeout(updatePosition, 0);
+
+        // Update position when debug panel is toggled
+        const debugButton = document.getElementById('debug-button');
+        if (debugButton) {
+            debugButton.addEventListener('click', () => {
+                setTimeout(updatePosition, 200); // Wait for debug panel animation
+            });
+        }
+
+        document.body.appendChild(controlsPanel);
+    }
+
+    /**
      * Update the UI elements
      */
     update() {
         // Update wind direction display
-        const windDirectionName = this.world.getWindDirectionName();
-
-        if (this.elements.windDirection) {
-            this.elements.windDirection.textContent = windDirectionName;
-        }
-
-        if (this.elements.windDirectionTop) {
-            this.elements.windDirectionTop.textContent = windDirectionName;
-        }
-
-        // Update wind arrow rotation
         const windDirection = this.world.getWindDirection();
         const windAngle = Math.atan2(windDirection.x, windDirection.z) * 180 / Math.PI;
-
-        if (this.elements.windArrow) {
-            this.elements.windArrow.style.transform = `rotate(${windAngle}deg)`;
-        }
 
         // Update wind direction needle in compass
         if (this.elements.windDirectionNeedle) {
             this.elements.windDirectionNeedle.style.transform = `rotate(${windAngle}deg)`;
-        }
-
-        // Update boat status
-        const boatSpeed = this.boat.getSpeedInKnots();
-
-        if (this.elements.boatStatus) {
-            this.elements.boatStatus.textContent = boatSpeed < 0.1 ? 'Static' : 'Moving';
         }
 
         // Update compass
@@ -998,13 +889,53 @@ class UI {
             this.elements.compassNeedle.style.transform = `rotate(${-heading}deg)`;
         }
 
-        if (this.elements.headingValue) {
-            this.elements.headingValue.textContent = `${Math.round(heading)}°`;
-        }
-
         // Update speedometer
         if (this.elements.speedValue) {
-            this.elements.speedValue.textContent = `${boatSpeed.toFixed(1)} knots`;
+            this.elements.speedValue.textContent = `${this.boat.getSpeedInKnots().toFixed(1)} knots`;
+        }
+
+        // Update debug panel
+        const debugContent = document.getElementById('debug-content');
+        if (debugContent && this.debugPanelVisible) {
+            // Format vector for display
+            const formatVector = (v) => {
+                return `[${v.x.toFixed(2)}, ${v.y.toFixed(2)}, ${v.z.toFixed(2)}] (mag: ${v.length().toFixed(2)})`;
+            };
+
+            // Calculate turn rate
+            const minSpeedFactor = 0.5;
+            const speedFactor = minSpeedFactor + (this.boat.speed * 0.5);
+            const turnRate = -1 * this.boat.rudderAngle * speedFactor * this.boat.rudderEfficiency / this.boat.inertia;
+
+            // Get drag force
+            const dragForce = this.boat.calculateDragForce();
+
+            debugContent.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0; color: #3399ff;">Boat Information</h4>
+                    <p>Position: <span style="color: #99ccff">${formatVector(this.boat.position)}</span></p>
+                    <p>Speed: <span style="color: #99ccff">${this.boat.speed.toFixed(2)} m/s (${this.boat.getSpeedInKnots().toFixed(2)} knots)</span></p>
+                    <p>Heading: <span style="color: #99ccff">${this.boat.getHeadingInDegrees().toFixed(1)}°</span></p>
+                    <p>Sail Angle: <span style="color: #99ccff">${(this.boat.sailAngle * 180 / Math.PI).toFixed(1)}°</span></p>
+                    <p>Rudder Angle: <span style="color: #99ccff">${(this.boat.rudderAngle * 180 / Math.PI).toFixed(1)}°</span></p>
+                    <p>Heel Angle: <span style="color: #99ccff">${this.boat.getHeelAngleInDegrees().toFixed(1)}°</span></p>
+                    <p>Turn Rate: <span style="color: #99ccff">${turnRate.toFixed(5)} rad/s (${(turnRate * 180 / Math.PI).toFixed(2)}°/s)</span></p>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0; color: #3399ff;">Wind Information</h4>
+                    <p>Wind Direction: <span style="color: #ffff99">${formatVector(this.world.getWindDirection())}</span></p>
+                    <p>Wind Speed: <span style="color: #ffff99">${this.world.getWindSpeed().toFixed(2)} m/s</span></p>
+                </div>
+
+                <div>
+                    <h4 style="margin: 0 0 10px 0; color: #3399ff;">Forces</h4>
+                    <p>Sail Force: <span style="color: #ff9999">${formatVector(this.boat.sailForce)}</span></p>
+                    <p>Forward Force: <span style="color: #99ff99">${formatVector(this.boat.forwardForce)}</span></p>
+                    <p>Lateral Force: <span style="color: #9999ff">${formatVector(this.boat.lateralForce)}</span></p>
+                    <p>Drag Force: <span style="color: #ff99ff">${formatVector(dragForce)}</span></p>
+                </div>
+            `;
         }
     }
 }

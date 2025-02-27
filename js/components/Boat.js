@@ -14,10 +14,8 @@ class Boat {
         // Create the boat 3D model
         this.createBoatModel();
         
-        // Initialize debugging if enabled
-        if (this.debugMode) {
-            this.initDebugSystem();
-        }
+        // Initialize debug vectors after boat model is created
+        this.initDebugSystem();
     }
     
     /**
@@ -66,8 +64,7 @@ class Boat {
         this.sailHeight = options.sailHeight || 14;
         this.boomLength = options.boomLength || this.sailLength + 1;
         
-        // Debug properties
-        this.debugMode = options.debugMode ?? true;
+        // Initialize empty debug vectors object
         this.debugVectors = {};
     }
     
@@ -201,7 +198,7 @@ class Boat {
     }
     
     /**
-     * Initialize debug system with vectors and info panel
+     * Initialize debug system with vectors
      */
     initDebugSystem() {
         // Create debug vectors with half the original length
@@ -212,9 +209,6 @@ class Boat {
             dragForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0xff00ff, 5, "Drag Force"), // Purple for drag
             windDirection: this.createDebugArrow(new THREE.Vector3(0, 15, 0), 0xffff00, 7.5, "Wind")
         };
-        
-        // Create debug info panel
-        this.createDebugInfoPanel();
     }
     
     /**
@@ -334,32 +328,6 @@ class Boat {
         };
         
         return group;
-    }
-    
-    /**
-     * Create debug info panel
-     */
-    createDebugInfoPanel() {
-        if (!document.getElementById('debug-panel')) {
-            const panel = document.createElement('div');
-            panel.id = 'debug-panel';
-            
-            // Apply styles
-            Object.assign(panel.style, {
-                position: 'absolute',
-                top: '10px',
-                left: '10px',
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                color: 'white',
-                padding: '10px',
-                fontFamily: 'monospace',
-                fontSize: '14px',
-                borderRadius: '5px',
-                zIndex: '1000'
-            });
-            
-            document.body.appendChild(panel);
-        }
     }
     
     /**
@@ -521,8 +489,6 @@ class Boat {
      * Update debug vectors
      */
     updateDebugVectors() {
-        if (!this.debugMode) return;
-        
         const scaleFactor = 2.5;
         const updateVector = (vector, force) => {
             if (!vector) return;
@@ -561,47 +527,6 @@ class Boat {
             // Make sure that our custom properties are updated
             this.debugVectors.windDirection.currentDirection = windDirectionLocal;
         }
-        
-        this.updateDebugInfoPanel();
-    }
-    
-    /**
-     * Update debug info panel
-     */
-    updateDebugInfoPanel() {
-        const panel = document.getElementById('debug-panel');
-        if (!panel || !this.debugMode) return;
-        
-        // Format vector for display
-        const formatVector = (v) => {
-            return `[${v.x.toFixed(2)}, ${v.y.toFixed(2)}, ${v.z.toFixed(2)}] (mag: ${v.length().toFixed(2)})`;
-        };
-        
-        // Calculate turn rate for display
-        const minSpeedFactor = 0.5;
-        const speedFactor = minSpeedFactor + (this.speed * 0.5);
-        const turnRate = -1 * this.rudderAngle * speedFactor * this.rudderEfficiency / this.inertia;
-        
-        // Get drag force for display
-        const dragForce = this.calculateDragForce();
-        
-        // Update panel content with boat info
-        panel.innerHTML = `
-            <h3>Boat Debug Info</h3>
-            <p>Position: ${formatVector(this.position)}</p>
-            <p>Speed: ${this.speed.toFixed(2)} m/s (${this.getSpeedInKnots().toFixed(2)} knots)</p>
-            <p>Heading: ${this.getHeadingInDegrees().toFixed(1)}°</p>
-            <p>Sail Angle: ${(this.sailAngle * 180 / Math.PI).toFixed(1)}°</p>
-            <p>Rudder Angle: ${(this.rudderAngle * 180 / Math.PI).toFixed(1)}°</p>
-            <p>Heel Angle: ${this.getHeelAngleInDegrees().toFixed(1)}°</p>
-            <p>Turn Rate: ${turnRate.toFixed(5)} rad/s (${(turnRate * 180 / Math.PI).toFixed(2)}°/s)</p>
-            <p>Wind Direction: <span style="color: #ffff00">${formatVector(this.world.getWindDirection())}</span></p>
-            <p>Wind Speed: ${this.world.getWindSpeed().toFixed(2)}</p>
-            <p>Sail Force: <span style="color: #ff0000">${formatVector(this.sailForce)}</span></p>
-            <p>Forward Force: <span style="color: #00ff00">${formatVector(this.forwardForce)}</span></p>
-            <p>Lateral Force: <span style="color: #0000ff">${formatVector(this.lateralForce)}</span></p>
-            <p>Drag Force: <span style="color: #ff00ff">${formatVector(dragForce)}</span></p>
-        `;
     }
     
     /**
@@ -706,10 +631,8 @@ class Boat {
         // Update heel angle
         this.updateHeelAngle(clampedDeltaTime);
         
-        // Update debug if enabled
-        if (this.debugMode) {
-            this.updateDebugVectors();
-        }
+        // Always update debug vectors
+        this.updateDebugVectors();
     }
     
     /**
