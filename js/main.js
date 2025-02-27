@@ -27,8 +27,16 @@ class SailingSimulator {
         // Camera modes
         this.cameraMode = 'orbit'; // 'orbit' or 'boat'
         this.cameraOffset = {
-            boat: new THREE.Vector3(0, 4, 8) // Position above and behind the rudder (positive Z is backward from the stern)
+            boat: new THREE.Vector3(0, 4, 0
+            ) // Position closer to the boat (reduced height and distance)
         };
+        
+        // First-person boat view controls
+        this.boatCameraRotation = 0; // Horizontal rotation offset in radians
+        this.boatCameraPitch = 0;    // Vertical rotation offset in radians
+        this.isMouseDown = false;
+        this.lastMouseX = 0;
+        this.lastMouseY = 0;
         
         // Initialize the application
         this.init();
@@ -42,8 +50,8 @@ class SailingSimulator {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87CEEB); // Sky blue background
         
-        // Create camera
-        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+        // Create camera with wider FOV for more immersive view
+        this.camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 2000);
         this.camera.position.set(0, 40, 70); // Higher and further back for better view
         this.camera.lookAt(0, 0, 0);
         
@@ -147,43 +155,50 @@ class SailingSimulator {
     }
     
     /**
-     * Updates camera position and orientation when in boat mode
-     */
-    updateBoatCamera() {
-        // Get boat position and rotation
-        const boatPos = this.boat.getPosition();
-        const boatRotation = this.boat.rotation;
-        
-        // Calculate position - place camera behind the stern
-        // The stern is at -hullLength/2, so we need to subtract more to go further back
-        const offset = new THREE.Vector3(0, this.cameraOffset.boat.y, -this.boat.hullLength / 2 - this.cameraOffset.boat.z);
-        offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), boatRotation);
-        
-        // Set camera position
-        this.camera.position.copy(boatPos).add(offset);
-        
-        // Calculate forward direction based on boat rotation
-        const forwardDir = new THREE.Vector3(
-            Math.sin(boatRotation), 
-            0.05, // Slight upward angle, reduced for a more natural view
-            Math.cos(boatRotation)
-        );
-        
-        // Set a point to look at - slightly ahead and above the boat
-        const lookAtPos = boatPos.clone();
-        forwardDir.multiplyScalar(20); // Look 20 units ahead
-        lookAtPos.add(forwardDir);
-        
-        this.camera.lookAt(lookAtPos);
-    }
-    
-    /**
      * Set up camera toggle controls
      */
     setupCameraControls() {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'c' || e.key === 'C') {
                 this.toggleCameraMode();
+            }
+        });
+        
+        // Handle mouse controls for first-person boat camera
+        document.addEventListener('mousedown', (event) => {
+            if (this.cameraMode === 'boat' && event.button === 0) {
+                this.isMouseDown = true;
+                this.lastMouseX = event.clientX;
+                this.lastMouseY = event.clientY;
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            this.isMouseDown = false;
+        });
+        
+        document.addEventListener('mousemove', (event) => {
+            if (this.cameraMode === 'boat' && this.isMouseDown) {
+                // Calculate horizontal rotation based on mouse movement
+                const horizontalSensitivity = 0.005;
+                const verticalSensitivity = 0.005;
+                
+                const deltaX = event.clientX - this.lastMouseX;
+                const deltaY = event.clientY - this.lastMouseY;
+                
+                this.boatCameraRotation += deltaX * horizontalSensitivity;
+                
+                // Update pitch (vertical rotation) and clamp to prevent camera flipping
+                this.boatCameraPitch += deltaY * verticalSensitivity;
+                const maxPitch = Math.PI * 0.45; // About 80 degrees up/down
+                this.boatCameraPitch = Math.max(-maxPitch, Math.min(maxPitch, this.boatCameraPitch));
+                
+                // Normalize rotation to 0-2π range
+                this.boatCameraRotation = this.boatCameraRotation % (Math.PI * 2);
+                if (this.boatCameraRotation < 0) this.boatCameraRotation += Math.PI * 2;
+                
+                this.lastMouseX = event.clientX;
+                this.lastMouseY = event.clientY;
             }
         });
     }
@@ -196,10 +211,21 @@ class SailingSimulator {
             this.cameraMode = 'boat';
             // Disable orbit controls when in boat mode
             this.controls.enabled = false;
+            // Reset boat camera rotation
+            this.boatCameraRotation = 0;
+            this.boatCameraPitch = 0;
+            
+            // Widen FOV when switching to boat mode for more immersive view
+            this.camera.fov = 80;
+            this.camera.updateProjectionMatrix();
         } else {
             this.cameraMode = 'orbit';
             // Re-enable orbit controls
             this.controls.enabled = true;
+            
+            // Return to default FOV for orbit mode
+            this.camera.fov = 60;
+            this.camera.updateProjectionMatrix();
         }
         
         // Update the controls panel to show the current camera mode
@@ -224,6 +250,49 @@ class SailingSimulator {
                 controlsInfo.appendChild(newInfo);
             }
         }
+    }
+    
+    /**
+     * Updates camera position and orientation when in boat mode
+     */
+    updateBoatCamera() {
+        // Get boat position and rotation
+        const boatPos = this.boat.getPosition();
+        const boatRotation = this.boat.rotation;
+        
+        // Calculate position - place camera behind the stern
+        // The stern is at -hullLength/2, so we need to subtract more to go further back
+        const offset = new THREE.Vector3(0, this.cameraOffset.boat.y, -this.boat.hullLength / 2 - this.cameraOffset.boat.z);
+        
+        // Apply boat rotation
+        offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), boatRotation);
+        
+        // Set camera position
+        this.camera.position.copy(boatPos).add(offset);
+        
+        // Calculate forward direction based on boat rotation plus camera rotation
+        // First create the horizontal rotation (yaw)
+        const totalYaw = boatRotation + this.boatCameraRotation;
+        const forwardDir = new THREE.Vector3(
+            Math.sin(totalYaw), 
+            0, 
+            Math.cos(totalYaw)
+        );
+        
+        // Then apply the vertical rotation (pitch)
+        // Create an up vector
+        const upVector = new THREE.Vector3(0, 1, 0);
+        
+        // Create a right vector perpendicular to forward and up
+        const rightVector = new THREE.Vector3().crossVectors(forwardDir, upVector).normalize();
+        
+        // Apply pitch rotation around the right vector
+        forwardDir.applyAxisAngle(rightVector, -this.boatCameraPitch);
+        
+        // Set a point to look at based on direction
+        const lookAtPos = this.camera.position.clone().add(forwardDir.multiplyScalar(20));
+        
+        this.camera.lookAt(lookAtPos);
     }
 }
 

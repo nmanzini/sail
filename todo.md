@@ -3,14 +3,12 @@
 
 ## UI
 - Add vector informations system to show forces acting on boat
-- debug wind particilces
 - sea animation
 - ✓ camera modes
 
 
 ## Physics
 - Implement realistic quadratic drag force (F = -kv²) to create natural speed limit
-- Fine-tune drag coefficient to achieve balanced maximum velocity
 
 
 ## Combat System
