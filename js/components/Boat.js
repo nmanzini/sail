@@ -21,10 +21,12 @@ class Boat {
         this.sailAngle = 0; // Angle of the sail relative to the boat (0 = aligned with boat)
         this.rudderAngle = 0; // Angle of the rudder
         this.isRudderControlled = false; // Flag to track if rudder is being actively controlled
+        this.heelAngle = 0; // Angle of boat leaning (around Z axis)
         
         // Boat properties
         this.maxSailAngle = Math.PI / 2; // 90 degrees
         this.maxRudderAngle = Math.PI / 4; // 45 degrees
+        this.maxHeelAngle = Math.PI / 6; // 30 degrees maximum heel
         
         // Physics properties
         this.mass = options.mass || 1000; // kg
@@ -32,6 +34,8 @@ class Boat {
         this.sailEfficiency = options.sailEfficiency || 1.0; // Sail efficiency factor
         this.rudderEfficiency = options.rudderEfficiency || 10.0; // Increased rudder turning efficiency
         this.inertia = options.inertia || 500; // Reduced resistance to rotation
+        this.heelFactor = options.heelFactor || 0.08; // Factor controlling how quickly boat heels
+        this.heelRecoveryRate = options.heelRecoveryRate || 0.5; // How quickly boat returns to upright
         
         // Force vectors
         this.sailForce = new THREE.Vector3(0, 0, 0);
@@ -493,6 +497,7 @@ class Boat {
             <p>Heading: ${this.getHeadingInDegrees().toFixed(1)}°</p>
             <p>Sail Angle: ${(this.sailAngle * 180 / Math.PI).toFixed(1)}°</p>
             <p>Rudder Angle: ${(this.rudderAngle * 180 / Math.PI).toFixed(1)}°</p>
+            <p>Heel Angle: ${this.getHeelAngleInDegrees().toFixed(1)}°</p>
             <p>Turn Rate: ${turnRate.toFixed(5)} rad/s (${(turnRate * 180 / Math.PI).toFixed(2)}°/s)</p>
             <p>Wind Direction: ${formatVector(this.world.getWindDirection())}</p>
             <p>Wind Speed: ${this.world.getWindSpeed().toFixed(2)}</p>
@@ -562,6 +567,30 @@ class Boat {
         // Update the boat's visual representation
         this.boatGroup.position.copy(this.position);
         this.boatGroup.rotation.y = this.rotation;
+        
+        // Calculate heel angle based on lateral force
+        const lateralMagnitude = this.lateralForce.length();
+        
+        // Get the lateral direction (left or right)
+        const lateralDirection = new THREE.Vector3(
+            -Math.cos(this.rotation), 
+            0, 
+            Math.sin(this.rotation)
+        );
+        const heelDirection = Math.sign(this.lateralForce.dot(lateralDirection));
+        
+        // Calculate target heel angle based on lateral force
+        const targetHeelAngle = Math.min(
+            this.maxHeelAngle,
+            lateralMagnitude * this.heelFactor
+        ) * heelDirection;
+        
+        // Smoothly transition to target heel angle
+        this.heelAngle += (targetHeelAngle - this.heelAngle) * 
+            Math.min(1, clampedDeltaTime * this.heelRecoveryRate);
+            
+        // Apply heel to boat model (rotation around Z axis)
+        this.boatGroup.rotation.z = this.heelAngle;
         
         // Update the flag to point away from the wind
         const windDirection = this.world.getWindDirection();
@@ -653,6 +682,14 @@ class Boat {
         if (panel) {
             panel.style.display = enabled ? 'block' : 'none';
         }
+    }
+    
+    /**
+     * Get the current heel angle in degrees
+     * @returns {number} The current heel angle in degrees
+     */
+    getHeelAngleInDegrees() {
+        return this.heelAngle * (180 / Math.PI);
     }
 }
 
