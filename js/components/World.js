@@ -181,8 +181,10 @@ class World {
         const dz = position.z - cameraPosition.z;
         const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
         const normalizedDistance = distance / this.windVisibilityRadius;
-        const distanceOpacity = Math.max(0.15, 1.0 - normalizedDistance * 0.85);
-        return distanceOpacity * (this.windSpeed / 50);
+        
+        // Smoother falloff with less aggressive distance attenuation
+        const distanceOpacity = Math.max(0.2, 1.0 - Math.pow(normalizedDistance, 1.5) * 0.8);
+        return distanceOpacity * (this.windSpeed / 40); // Adjusted wind speed factor
     }
     
     /**
@@ -200,21 +202,26 @@ class World {
         
         if (this.camera) {
             const cameraPos = this.camera.position;
+            const cameraDir = this.camera.getWorldDirection(new THREE.Vector3());
             
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
                 const i6 = i * 6;
                 const i2 = i * 2;
                 
-                // Random position in a cylinder around camera
-                const radius = Math.pow(Math.random(), 0.5) * this.windVisibilityRadius;
-                const theta = Math.random() * Math.PI * 2;
+                // Create particles in a frustum-like shape in front of the camera
+                const radius = Math.pow(Math.random(), 0.5) * this.windVisibilityRadius * 0.8;
+                const forwardOffset = Math.random() * this.windVisibilityRadius * 0.7;
+                const theta = (Math.random() - 0.5) * Math.PI * 1.2; // 120-degree spread
                 
-                const position = new THREE.Vector3(
-                    cameraPos.x + radius * Math.cos(theta),
-                    Math.random() * 40 + 2,
-                    cameraPos.z + radius * Math.sin(theta)
-                );
+                // Calculate position relative to camera direction
+                const right = new THREE.Vector3().crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
+                const position = new THREE.Vector3()
+                    .copy(cameraPos)
+                    .add(cameraDir.clone().multiplyScalar(forwardOffset))
+                    .add(right.clone().multiplyScalar(Math.sin(theta) * radius));
+                
+                position.y = Math.random() * 40 + 2;
                 
                 // Store position
                 positions[i3] = position.x;
@@ -227,7 +234,7 @@ class World {
                 velocities[i3 + 2] = this.windDirection.z * this.windSpeed + (Math.random() - 0.5) * 1;
                 
                 // Calculate trail positions
-                const trailLength = this.windSpeed * 0.5;
+                const trailLength = this.windSpeed * 0.7;
                 const trailEnd = new THREE.Vector3(
                     position.x - this.windDirection.x * trailLength,
                     position.y - this.windDirection.y * trailLength,
@@ -244,8 +251,8 @@ class World {
                 
                 // Set trail opacities
                 const opacity = this._calculateOpacity(position, cameraPos);
-                trailOpacities[i2] = opacity * 2.0;
-                trailOpacities[i2 + 1] = 0;
+                trailOpacities[i2] = opacity * 2.5;
+                trailOpacities[i2 + 1] = opacity * 0.2;
             }
         }
         
@@ -298,6 +305,8 @@ class World {
         
         const {positions, velocities, trailPositions, trailOpacities, count} = this.windParticles;
         const cameraPosition = this.camera.position;
+        const cameraDir = this.camera.getWorldDirection(new THREE.Vector3());
+        const right = new THREE.Vector3().crossVectors(cameraDir, new THREE.Vector3(0, 1, 0)).normalize();
         
         for (let i = 0; i < count; i++) {
             const i3 = i * 3;
@@ -310,38 +319,48 @@ class World {
             positions[i3 + 2] += velocities[i3 + 2] * deltaTime;
             
             const position = new THREE.Vector3(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-            const distance = position.distanceTo(cameraPosition);
             
-            // Reset particle if out of bounds
-            if (distance > this.windVisibilityRadius * 0.95 || 
-                positions[i3 + 1] < 1 || positions[i3 + 1] > 45) {
+            // Calculate distance from camera view line instead of just camera position
+            const toParticle = position.clone().sub(cameraPosition);
+            const projectedDist = toParticle.dot(cameraDir);
+            const lateralOffset = toParticle.clone().sub(cameraDir.clone().multiplyScalar(projectedDist));
+            const distance = lateralOffset.length();
+            
+            // Reset based on view frustum position
+            const isBehindCamera = projectedDist < -20;
+            const isTooFarAhead = projectedDist > this.windVisibilityRadius;
+            const isTooFarToSide = distance > this.windVisibilityRadius * 0.6;
+            const isOutOfHeight = positions[i3 + 1] < 0.5 || positions[i3 + 1] > 50;
+            
+            if (isBehindCamera || isTooFarAhead || isTooFarToSide || isOutOfHeight) {
+                // Reset particle in view frustum
+                const radius = Math.pow(Math.random(), 0.5) * this.windVisibilityRadius * 0.5;
+                const forwardOffset = Math.random() * this.windVisibilityRadius * 0.7;
+                const theta = (Math.random() - 0.5) * Math.PI * 1.2;
                 
-                const radius = Math.pow(Math.random(), 0.5) * (this.windVisibilityRadius * 0.7);
-                const spreadAngle = Math.PI * 0.75;
-                const theta = Math.atan2(-this.windDirection.z, -this.windDirection.x) + 
-                             (Math.random() - 0.5) * spreadAngle;
+                position.copy(cameraPosition)
+                    .add(cameraDir.clone().multiplyScalar(forwardOffset))
+                    .add(right.clone().multiplyScalar(Math.sin(theta) * radius));
                 
-                position.set(
-                    cameraPosition.x + radius * Math.cos(theta),
-                    Math.random() * 40 + 2,
-                    cameraPosition.z + radius * Math.sin(theta)
-                );
+                position.y = Math.random() * 40 + 2;
                 
                 positions[i3] = position.x;
                 positions[i3 + 1] = position.y;
                 positions[i3 + 2] = position.z;
                 
-                velocities[i3] = this.windDirection.x * this.windSpeed + (Math.random() - 0.5) * 1;
-                velocities[i3 + 1] = (Math.random() - 0.5) * 0.2;
-                velocities[i3 + 2] = this.windDirection.z * this.windSpeed + (Math.random() - 0.5) * 1;
+                // Smoother velocity reset
+                velocities[i3] = this.windDirection.x * this.windSpeed * (0.8 + Math.random() * 0.4);
+                velocities[i3 + 1] = (Math.random() - 0.5) * 0.3;
+                velocities[i3 + 2] = this.windDirection.z * this.windSpeed * (0.8 + Math.random() * 0.4);
             } else {
-                // Update velocity
-                velocities[i3] += (this.windDirection.x * this.windSpeed - velocities[i3]) * deltaTime * 0.2;
-                velocities[i3 + 2] += (this.windDirection.z * this.windSpeed - velocities[i3 + 2]) * deltaTime * 0.2;
+                // Smoother velocity updates
+                const lerpFactor = deltaTime * 0.3;
+                velocities[i3] += (this.windDirection.x * this.windSpeed - velocities[i3]) * lerpFactor;
+                velocities[i3 + 2] += (this.windDirection.z * this.windSpeed - velocities[i3 + 2]) * lerpFactor;
             }
             
-            // Update trail
-            const trailLength = this.windSpeed * 0.5;
+            // Update trail with longer length for better visibility
+            const trailLength = this.windSpeed * 0.7;
             const trailEnd = new THREE.Vector3(
                 position.x - this.windDirection.x * trailLength,
                 position.y - this.windDirection.y * trailLength,
@@ -356,10 +375,10 @@ class World {
             trailPositions[i6 + 4] = trailEnd.y;
             trailPositions[i6 + 5] = trailEnd.z;
             
-            // Update trail opacity
+            // Update trail opacity with smoother transition
             const opacity = this._calculateOpacity(position, cameraPosition);
-            trailOpacities[i2] = opacity * 2.0;
-            trailOpacities[i2 + 1] = 0;
+            trailOpacities[i2] = opacity * 2.5;
+            trailOpacities[i2 + 1] = opacity * 0.2;
         }
         
         // Update geometry attributes
