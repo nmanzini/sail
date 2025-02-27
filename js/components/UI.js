@@ -40,6 +40,9 @@ class UI {
         this.createDebugButton();
         this.createDebugPanel();
 
+        // Add a more prominent wind controls button directly on the UI
+        this.createWindControlsButton();
+
         // Store references to all elements we'll need to update
         this.cacheElementReferences();
 
@@ -50,6 +53,9 @@ class UI {
         if (this.elements.debugPanel) {
             this.elements.debugPanel.style.display = 'none';
         }
+
+        // Log that UI has been initialized for debugging
+        console.log('UI initialized successfully. Debug panel and wind controls should be available.');
     }
     
     /**
@@ -741,6 +747,213 @@ class UI {
 
         document.body.appendChild(controlsInfo);
         this.controlsInfo = controlsInfo;
+    }
+
+    /**
+     * Create a more prominent button for wind controls
+     */
+    createWindControlsButton() {
+        const windButton = document.createElement('div');
+        windButton.id = 'wind-controls-button';
+        windButton.style.position = 'absolute';
+        // Position it under the speedometer/compass
+        windButton.style.top = 'auto';
+        windButton.style.bottom = '250px'; // Positioned above the camera button (which is at 180px)
+        windButton.style.right = '10px';
+        windButton.style.backgroundColor = 'rgba(0, 100, 200, 0.8)';
+        windButton.style.color = 'white';
+        windButton.style.padding = '8px 12px';
+        windButton.style.borderRadius = '5px';
+        windButton.style.cursor = 'pointer';
+        windButton.style.fontSize = '14px';
+        windButton.style.zIndex = '1000';
+        windButton.style.pointerEvents = 'auto';
+        windButton.style.userSelect = 'none';
+        windButton.textContent = 'Wind Controls';
+        windButton.style.transition = 'all 0.3s ease';
+        windButton.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.3)';
+
+        // Add hover effects
+        windButton.addEventListener('mouseover', () => {
+            windButton.style.backgroundColor = 'rgba(0, 120, 220, 0.9)';
+        });
+
+        windButton.addEventListener('mouseout', () => {
+            windButton.style.backgroundColor = 'rgba(0, 100, 200, 0.8)';
+        });
+
+        // Create a dedicated wind controls panel
+        const windControlsPanel = this.createStandaloneWindControls();
+        windControlsPanel.style.display = 'none';
+        
+        // Toggle wind controls panel
+        windButton.addEventListener('click', () => {
+            if (windControlsPanel.style.display === 'none') {
+                windControlsPanel.style.display = 'block';
+                windButton.style.backgroundColor = 'rgba(0, 150, 250, 0.9)';
+            } else {
+                windControlsPanel.style.display = 'none';
+                windButton.style.backgroundColor = 'rgba(0, 100, 200, 0.8)';
+            }
+        });
+
+        document.body.appendChild(windButton);
+        document.body.appendChild(windControlsPanel);
+    }
+
+    /**
+     * Create a standalone wind controls panel that appears outside the debug panel
+     */
+    createStandaloneWindControls() {
+        const windControlsPanel = document.createElement('div');
+        windControlsPanel.id = 'standalone-wind-controls';
+        windControlsPanel.style.position = 'absolute';
+        // Adjust position to appear near the button when opened
+        windControlsPanel.style.top = 'auto';
+        windControlsPanel.style.bottom = '300px';
+        windControlsPanel.style.right = '10px';
+        windControlsPanel.style.width = '250px';
+        windControlsPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        windControlsPanel.style.color = 'white';
+        windControlsPanel.style.padding = '15px';
+        windControlsPanel.style.borderRadius = '5px';
+        windControlsPanel.style.fontSize = '14px';
+        windControlsPanel.style.zIndex = '999';
+        windControlsPanel.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+
+        // Add a title for the panel
+        const title = document.createElement('h3');
+        title.textContent = 'Wind Controls';
+        title.style.marginTop = '0';
+        title.style.marginBottom = '15px';
+        title.style.textAlign = 'center';
+        title.style.color = '#3399ff';
+        windControlsPanel.appendChild(title);
+
+        // Wind Speed Control
+        const windSpeedContainer = document.createElement('div');
+        windSpeedContainer.style.marginBottom = '15px';
+
+        const windSpeedLabel = document.createElement('div');
+        windSpeedLabel.style.display = 'flex';
+        windSpeedLabel.style.justifyContent = 'space-between';
+        windSpeedLabel.style.marginBottom = '5px';
+        windSpeedLabel.innerHTML = `
+            <span>Wind Speed:</span>
+            <span id="standalone-wind-speed-value" style="color: #3399ff;">${this.world.getWindSpeed().toFixed(1)}</span>
+        `;
+
+        const windSpeedSlider = document.createElement('input');
+        windSpeedSlider.type = 'range';
+        windSpeedSlider.id = 'standalone-wind-speed';
+        windSpeedSlider.min = '0';
+        windSpeedSlider.max = '50';
+        windSpeedSlider.step = '0.5';
+        windSpeedSlider.value = this.world.getWindSpeed();
+        windSpeedSlider.style.width = '100%';
+
+        windSpeedSlider.addEventListener('input', () => {
+            const newSpeed = parseFloat(windSpeedSlider.value);
+            const currentDirection = this.world.getWindDirection();
+            this.world.setWind(currentDirection, newSpeed);
+            document.getElementById('standalone-wind-speed-value').textContent = newSpeed.toFixed(1);
+        });
+
+        windSpeedContainer.appendChild(windSpeedLabel);
+        windSpeedContainer.appendChild(windSpeedSlider);
+        windControlsPanel.appendChild(windSpeedContainer);
+
+        // Wind Direction Control
+        const windDirContainer = document.createElement('div');
+        windDirContainer.style.marginBottom = '15px';
+
+        const currentDir = this.world.getWindDirection();
+        const dirAngle = (Math.atan2(currentDir.x, currentDir.z) * 180 / Math.PI).toFixed(0);
+
+        const windDirLabel = document.createElement('div');
+        windDirLabel.style.display = 'flex';
+        windDirLabel.style.justifyContent = 'space-between';
+        windDirLabel.style.marginBottom = '5px';
+        windDirLabel.innerHTML = `
+            <span>Wind Direction:</span>
+            <span id="standalone-wind-dir-value" style="color: #3399ff;">${dirAngle}°</span>
+        `;
+
+        const windDirSlider = document.createElement('input');
+        windDirSlider.type = 'range';
+        windDirSlider.id = 'standalone-wind-dir';
+        windDirSlider.min = '0';
+        windDirSlider.max = '360';
+        windDirSlider.step = '5';
+        windDirSlider.value = dirAngle;
+        windDirSlider.style.width = '100%';
+
+        windDirSlider.addEventListener('input', () => {
+            const angle = parseFloat(windDirSlider.value) * Math.PI / 180;
+            const newDirection = new THREE.Vector3(
+                Math.sin(angle),
+                0,
+                Math.cos(angle)
+            );
+            const currentSpeed = this.world.getWindSpeed();
+            this.world.setWind(newDirection, currentSpeed);
+            document.getElementById('standalone-wind-dir-value').textContent = windDirSlider.value + '°';
+        });
+
+        windDirContainer.appendChild(windDirLabel);
+        windDirContainer.appendChild(windDirSlider);
+        windControlsPanel.appendChild(windDirContainer);
+
+        // Quick wind buttons
+        const windButtonsContainer = document.createElement('div');
+        windButtonsContainer.style.display = 'flex';
+        windButtonsContainer.style.justifyContent = 'space-between';
+
+        const increaseWindBtn = document.createElement('button');
+        increaseWindBtn.textContent = 'Increase Wind';
+        increaseWindBtn.style.flex = '1';
+        increaseWindBtn.style.marginRight = '5px';
+        increaseWindBtn.style.padding = '5px';
+        increaseWindBtn.style.backgroundColor = 'rgba(60, 100, 180, 0.7)';
+        increaseWindBtn.style.border = '1px solid #3399ff';
+        increaseWindBtn.style.color = 'white';
+        increaseWindBtn.style.borderRadius = '3px';
+        increaseWindBtn.style.cursor = 'pointer';
+
+        increaseWindBtn.addEventListener('click', () => {
+            const currentSpeed = this.world.getWindSpeed();
+            const newSpeed = Math.min(20, currentSpeed + 2);
+            const currentDirection = this.world.getWindDirection();
+            this.world.setWind(currentDirection, newSpeed);
+            windSpeedSlider.value = newSpeed;
+            document.getElementById('standalone-wind-speed-value').textContent = newSpeed.toFixed(1);
+        });
+
+        const decreaseWindBtn = document.createElement('button');
+        decreaseWindBtn.textContent = 'Decrease Wind';
+        decreaseWindBtn.style.flex = '1';
+        decreaseWindBtn.style.marginLeft = '5px';
+        decreaseWindBtn.style.padding = '5px';
+        decreaseWindBtn.style.backgroundColor = 'rgba(60, 100, 180, 0.7)';
+        decreaseWindBtn.style.border = '1px solid #3399ff';
+        decreaseWindBtn.style.color = 'white';
+        decreaseWindBtn.style.borderRadius = '3px';
+        decreaseWindBtn.style.cursor = 'pointer';
+
+        decreaseWindBtn.addEventListener('click', () => {
+            const currentSpeed = this.world.getWindSpeed();
+            const newSpeed = Math.max(0, currentSpeed - 2);
+            const currentDirection = this.world.getWindDirection();
+            this.world.setWind(currentDirection, newSpeed);
+            windSpeedSlider.value = newSpeed;
+            document.getElementById('standalone-wind-speed-value').textContent = newSpeed.toFixed(1);
+        });
+
+        windButtonsContainer.appendChild(increaseWindBtn);
+        windButtonsContainer.appendChild(decreaseWindBtn);
+        windControlsPanel.appendChild(windButtonsContainer);
+
+        return windControlsPanel;
     }
 
     /**
