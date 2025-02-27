@@ -889,9 +889,10 @@ class UI {
             this.elements.compassNeedle.style.transform = `rotate(${-heading}deg)`;
         }
 
-        // Update speedometer
-        if (this.elements.speedValue) {
-            this.elements.speedValue.textContent = `${this.boat.getSpeedInKnots().toFixed(1)} knots`;
+        // Update speedometer - directly update the speed value element
+        const speedValue = document.getElementById('speed-value');
+        if (speedValue) {
+            speedValue.textContent = `${this.boat.getSpeedInKnots().toFixed(1)} knots`;
         }
 
         // Update debug panel
