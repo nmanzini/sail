@@ -1,27 +1,21 @@
 /**
- * Mobile touch controls for the sailing simulator using nipple.js
+ * Touch controls for the sailing simulator using nipple.js
+ * (No longer mobile-specific)
  */
 class MobileControls {
     constructor(boat) {
         this.boat = boat;
-        this.isMobile = false;
+        // Always create touch controls, not just on mobile
         this.joysticks = {
             rudder: null,
             sail: null
         };
 
-        // Check if device is mobile
-        this.checkMobile();
-
-        // Create UI elements if on mobile
-        if (this.isMobile) {
-            this.createTouchControls();
-        }
+        // Create UI elements
+        this.createTouchControls();
 
         // Handle resize events
         window.addEventListener('resize', () => {
-            this.checkMobile();
-
             // Remove old controls if they exist
             const existingControls = document.getElementById('mobile-controls');
             if (existingControls) {
@@ -39,20 +33,9 @@ class MobileControls {
                 }
             }
 
-            // Create new controls if on mobile
-            if (this.isMobile) {
-                this.createTouchControls();
-            }
+            // Create new controls
+            this.createTouchControls();
         });
-    }
-
-    /**
-     * Check if the device is mobile
-     */
-    checkMobile() {
-        this.isMobile = window.innerWidth <= 768 || 
-                       ('ontouchstart' in window) ||
-                       (navigator.maxTouchPoints > 0);
     }
 
     /**
@@ -92,18 +75,6 @@ class MobileControls {
         rudderLabel.style.textShadow = '1px 1px 2px black';
         rudderZone.appendChild(rudderLabel);
 
-        // Add instruction for rudder
-        const rudderInstruction = document.createElement('div');
-        rudderInstruction.textContent = 'Slide left/right to steer';
-        rudderInstruction.style.position = 'absolute';
-        rudderInstruction.style.top = '10px';
-        rudderInstruction.style.width = '100%';
-        rudderInstruction.style.textAlign = 'center';
-        rudderInstruction.style.color = 'rgba(255, 255, 255, 0.7)';
-        rudderInstruction.style.fontSize = '10px';
-        rudderInstruction.style.textShadow = '1px 1px 2px black';
-        rudderZone.appendChild(rudderInstruction);
-
         // Create sail joystick zone (right side)
         const sailZone = document.createElement('div');
         sailZone.id = 'sail-zone';
@@ -122,18 +93,6 @@ class MobileControls {
         sailLabel.style.fontWeight = 'bold';
         sailLabel.style.textShadow = '1px 1px 2px black';
         sailZone.appendChild(sailLabel);
-
-        // Add instruction for sail
-        const sailInstruction = document.createElement('div');
-        sailInstruction.textContent = 'Slide left/right to adjust sail';
-        sailInstruction.style.position = 'absolute';
-        sailInstruction.style.top = '10px';
-        sailInstruction.style.width = '100%';
-        sailInstruction.style.textAlign = 'center';
-        sailInstruction.style.color = 'rgba(255, 255, 255, 0.7)';
-        sailInstruction.style.fontSize = '10px';
-        sailInstruction.style.textShadow = '1px 1px 2px black';
-        sailZone.appendChild(sailInstruction);
 
         // Add zones to container
         controlsContainer.appendChild(rudderZone);
@@ -175,9 +134,9 @@ class MobileControls {
             // Get x-axis data (-1 to 1 range)
             const xDirection = data.vector.x;
 
-            // Pass touch controls to the boat's control system
+            // Pass touch controls to the boat's control system with inverted rudder
             this.boat.processTouchControls({
-                rudder: xDirection
+                rudder: -xDirection // Invert rudder direction
             });
         });
 
@@ -210,10 +169,10 @@ class MobileControls {
     }
 
     /**
-     * Check if mobile controls are active
+     * Controls are always active now
      */
     isActive() {
-        return this.isMobile;
+        return true;
     }
 }
 

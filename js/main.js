@@ -107,7 +107,7 @@ class SailingSimulator {
         // Create UI
         this.ui = new UI(this.boat, this.world);
         
-        // Create mobile controls if on mobile device
+        // Create touch controls for all devices (previously mobile-only)
         this.mobileControls = new MobileControls(this.boat);
         
         // Set up camera controls
