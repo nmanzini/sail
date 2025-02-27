@@ -660,6 +660,8 @@ class UI {
                 <div>Rudder control</div>
                 <div>A D</div>
                 <div>Sail control</div>
+                <div>C</div>
+                <div>Switch camera mode</div>
                 <div>🖱️ Left + Drag</div>
                 <div>Rotate camera</div>
                 <div>🖱️ Right + Drag</div>
@@ -670,6 +672,7 @@ class UI {
         `;
         
         document.body.appendChild(controlsInfo);
+        this.controlsInfo = controlsInfo;
     }
     
     /**
