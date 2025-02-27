@@ -2,16 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Simple Sailing Simulator</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
             font-family: Arial, sans-serif;
+            touch-action: none;
         }
         canvas {
             display: block;
+        }
+        .touch-control {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            -webkit-user-select: none;
+            user-select: none;
         }
     </style>
 </head>
@@ -26,6 +37,9 @@
             }
         }
     </script>
+    
+    <!-- Nipple.js for virtual joystick on mobile -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
 
     <script type="module" src="js/main.js"></script>
 </body>

@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import World from './components/World.js';
 import Boat from './components/Boat.js';
 import UI from './components/UI.js';
+import MobileControls from './components/MobileControls.js';
 
 /**
  * Main application class for the sailing simulator
@@ -89,6 +90,9 @@ class SailingSimulator {
         
         // Create UI
         this.ui = new UI(this.boat, this.world);
+        
+        // Create mobile controls if on mobile device
+        this.mobileControls = new MobileControls(this.boat);
         
         // Set up camera controls
         this.setupCameraControls();
