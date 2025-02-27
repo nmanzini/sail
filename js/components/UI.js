@@ -34,6 +34,7 @@ class UI {
         this.createSpeedometer();
         this.createControls();
         this.createCompass();
+        this.createFloatingControlsInfo();
         
         // Debug UI elements (hidden by default)
         this.createDebugButton();
@@ -339,121 +340,16 @@ class UI {
      * Create combined controls panel (sail and rudder)
      */
     createControls() {
-        const controlsPanel = document.createElement('div');
-        controlsPanel.id = 'controls-panel';
-        controlsPanel.style.position = 'absolute';
-        controlsPanel.style.bottom = '10px';
-        controlsPanel.style.left = '10px';
-        controlsPanel.style.color = 'white';
-        controlsPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        controlsPanel.style.padding = '10px';
-        controlsPanel.style.borderRadius = '5px';
-        controlsPanel.style.fontSize = '14px';
-        
-        // Sail controls
-        const sailControls = document.createElement('div');
-        sailControls.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>Sail Angle: <span id="sail-angle-value">0°</span></div>
-                <button id="reset-sail" style="padding: 2px 8px; background: rgba(60, 60, 60, 0.7); border: 1px solid #666; color: white; border-radius: 3px; cursor: pointer;">Reset</button>
-            </div>
-            <div style="font-size: 10px; margin-bottom: 5px;">(0° = aligned with boat, 90° = perpendicular)</div>
-            <input type="range" id="sail-angle-slider" min="-90" max="90" value="0" style="width: 200px;">
-        `;
-        controlsPanel.appendChild(sailControls);
-        
-        // Add spacing
-        const spacer = document.createElement('div');
-        spacer.style.marginTop = '15px';
-        controlsPanel.appendChild(spacer);
-        
-        // Rudder controls
-        const rudderControls = document.createElement('div');
-        rudderControls.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>Rudder Angle: <span id="rudder-angle-value">0°</span></div>
-                <button id="reset-rudder" style="padding: 2px 8px; background: rgba(60, 60, 60, 0.7); border: 1px solid #666; color: white; border-radius: 3px; cursor: pointer;">Reset</button>
-            </div>
-            <div style="font-size: 10px; margin-bottom: 5px;">(negative = left, positive = right)</div>
-            <input type="range" id="rudder-angle-slider" min="-45" max="45" value="0" style="width: 200px;">
-        `;
-        controlsPanel.appendChild(rudderControls);
-        
-        document.body.appendChild(controlsPanel);
-        
-        // Add event listeners for controls
-        this.addControlEventListeners();
+        // Since we're removing the controls panel, this method can be empty
+        // All controls are now handled via keyboard
     }
     
     /**
      * Add event listeners for sail and rudder controls
      */
     addControlEventListeners() {
-        // Sail angle slider
-        const sailAngleSlider = document.getElementById('sail-angle-slider');
-        sailAngleSlider.addEventListener('input', (e) => {
-            const angle = parseInt(e.target.value) * Math.PI / 180;
-            this.boat.setSailAngle(angle);
-            document.getElementById('sail-angle-value').textContent = `${e.target.value}°`;
-        });
-        
-        // Rudder angle slider
-        const rudderAngleSlider = document.getElementById('rudder-angle-slider');
-        rudderAngleSlider.addEventListener('input', (e) => {
-            const angle = parseInt(e.target.value) * Math.PI / 180;
-            this.boat.setRudderAngle(angle);
-            document.getElementById('rudder-angle-value').textContent = `${e.target.value}°`;
-        });
-        
-        // Reset sail button
-        const resetSailButton = document.getElementById('reset-sail');
-        if (resetSailButton) {
-            // Add hover effects
-            resetSailButton.addEventListener('mouseover', () => {
-                resetSailButton.style.backgroundColor = 'rgba(80, 80, 80, 0.9)';
-            });
-            
-            resetSailButton.addEventListener('mouseout', () => {
-                resetSailButton.style.backgroundColor = 'rgba(60, 60, 60, 0.7)';
-            });
-            
-            // Click event for mouse
-            resetSailButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.resetSail();
-            });
-            
-            // Touch event for mobile
-            resetSailButton.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                this.resetSail();
-            });
-        }
-        
-        // Reset rudder button
-        const resetRudderButton = document.getElementById('reset-rudder');
-        if (resetRudderButton) {
-            // Add hover effects
-            resetRudderButton.addEventListener('mouseover', () => {
-                resetRudderButton.style.backgroundColor = 'rgba(80, 80, 80, 0.9)';
-            });
-            
-            resetRudderButton.addEventListener('mouseout', () => {
-                resetRudderButton.style.backgroundColor = 'rgba(60, 60, 60, 0.7)';
-            });
-            
-            // Click event for mouse
-            resetRudderButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.resetRudder();
-            });
-            
-            // Touch event for mobile
-            resetRudderButton.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                this.resetRudder();
-            });
-        }
+        // Since we removed the UI controls, we only need keyboard controls
+        // This method can be empty as keyboard controls are handled in setupKeyboardControls
     }
     
     /**
@@ -461,140 +357,116 @@ class UI {
      */
     resetSail() {
         this.boat.setSailAngle(0);
-        if (this.elements.sailAngleSlider) {
-            this.elements.sailAngleSlider.value = 0;
-        }
-        if (this.elements.sailAngleValue) {
-            this.elements.sailAngleValue.textContent = '0°';
-        }
     }
     
     /**
      * Reset rudder angle to 0
      */
     resetRudder() {
-        this.boat.setRudderAngle(0);
-        if (this.elements.rudderAngleSlider) {
-            this.elements.rudderAngleSlider.value = 0;
-        }
-        if (this.elements.rudderAngleValue) {
-            this.elements.rudderAngleValue.textContent = '0°';
-        }
-    }
-    
-    /**
-     * Update the UI elements
-     */
-    update() {
-        // Update wind direction display
-        const windDirectionName = this.world.getWindDirectionName();
-        
-        if (this.elements.windDirection) {
-            this.elements.windDirection.textContent = windDirectionName;
-        }
-        
-        if (this.elements.windDirectionTop) {
-            this.elements.windDirectionTop.textContent = windDirectionName;
-        }
-        
-        // Update wind arrow rotation
-        const windDirection = this.world.getWindDirection();
-        const windAngle = Math.atan2(windDirection.x, windDirection.z) * 180 / Math.PI;
-        
-        if (this.elements.windArrow) {
-            this.elements.windArrow.style.transform = `rotate(${windAngle}deg)`;
-        }
-        
-        // Update wind direction needle in compass
-        if (this.elements.windDirectionNeedle) {
-            this.elements.windDirectionNeedle.style.transform = `rotate(${windAngle}deg)`;
-        }
-        
-        // Update boat status
-        const boatSpeed = this.boat.getSpeedInKnots();
-        
-        if (this.elements.boatStatus) {
-            this.elements.boatStatus.textContent = boatSpeed < 0.1 ? 'Static' : 'Moving';
-        }
-        
-        // Update compass
-        const heading = this.boat.getHeadingInDegrees();
-        
-        if (this.elements.compassNeedle) {
-            this.elements.compassNeedle.style.transform = `rotate(${-heading}deg)`;
-        }
-        
-        if (this.elements.headingValue) {
-            this.elements.headingValue.textContent = `${Math.round(heading)}°`;
-        }
-        
-        // Update speedometer
-        if (this.elements.speedValue) {
-            this.elements.speedValue.textContent = `${boatSpeed.toFixed(1)} knots`;
-        }
+        this.boat.setRudderAngle(0, false);
     }
     
     /**
      * Set up keyboard controls
      */
     setupKeyboardControls() {
+        // Track which keys are currently pressed
+        const pressedKeys = new Set();
+        
+        // Constants for control speeds (in radians per second)
+        const RUDDER_TURN_SPEED = 1.0;
+        const SAIL_ADJUST_SPEED = 1.0;
+        
+        // Setup animation frame for continuous movement
+        let lastTime = performance.now();
+        let animationFrameId = null;
+        
+        const updateControls = (currentTime) => {
+            const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+            lastTime = currentTime;
+            
+            // Handle rudder movement
+            if (pressedKeys.has('ArrowLeft')) {
+                const newAngle = this.boat.rudderAngle - RUDDER_TURN_SPEED * deltaTime;
+                this.boat.setRudderAngle(newAngle, true);
+            }
+            if (pressedKeys.has('ArrowRight')) {
+                const newAngle = this.boat.rudderAngle + RUDDER_TURN_SPEED * deltaTime;
+                this.boat.setRudderAngle(newAngle, true);
+            }
+            
+            // Handle sail movement
+            if (pressedKeys.has('a') || pressedKeys.has('A')) {
+                const newAngle = this.boat.sailAngle - SAIL_ADJUST_SPEED * deltaTime;
+                this.boat.setSailAngle(newAngle);
+            }
+            if (pressedKeys.has('d') || pressedKeys.has('D')) {
+                const newAngle = this.boat.sailAngle + SAIL_ADJUST_SPEED * deltaTime;
+                this.boat.setSailAngle(newAngle);
+            }
+            
+            // Continue animation if any relevant keys are pressed
+            if (pressedKeys.size > 0) {
+                animationFrameId = requestAnimationFrame(updateControls);
+            } else {
+                animationFrameId = null;
+            }
+        };
+        
+        // Key down event - start continuous movement
         document.addEventListener('keydown', (e) => {
+            // Prevent default behavior for game controls
+            if (['ArrowLeft', 'ArrowRight', 'a', 'A', 'd', 'D'].includes(e.key)) {
+                e.preventDefault();
+            }
+            
             switch (e.key) {
                 case 'a':
                 case 'A':
-                    // Adjust sail angle left
-                    const currentSailAngle = this.boat.sailAngle;
-                    this.boat.setSailAngle(currentSailAngle - 0.1);
-                    
-                    if (this.elements.sailAngleSlider) {
-                        this.elements.sailAngleSlider.value = Math.round(this.boat.sailAngle * 180 / Math.PI);
-                    }
-                    
-                    if (this.elements.sailAngleValue) {
-                        this.elements.sailAngleValue.textContent = `${Math.round(this.boat.sailAngle * 180 / Math.PI)}°`;
-                    }
-                    break;
                 case 'd':
                 case 'D':
-                    // Adjust sail angle right
-                    const currentSailAngle2 = this.boat.sailAngle;
-                    this.boat.setSailAngle(currentSailAngle2 + 0.1);
-                    
-                    if (this.elements.sailAngleSlider) {
-                        this.elements.sailAngleSlider.value = Math.round(this.boat.sailAngle * 180 / Math.PI);
-                    }
-                    
-                    if (this.elements.sailAngleValue) {
-                        this.elements.sailAngleValue.textContent = `${Math.round(this.boat.sailAngle * 180 / Math.PI)}°`;
-                    }
-                    break;
                 case 'ArrowLeft':
-                    // Adjust rudder left
-                    const currentRudderAngle = this.boat.rudderAngle;
-                    this.boat.setRudderAngle(currentRudderAngle - 0.1);
-                    
-                    if (this.elements.rudderAngleSlider) {
-                        this.elements.rudderAngleSlider.value = Math.round(this.boat.rudderAngle * 180 / Math.PI);
-                    }
-                    
-                    if (this.elements.rudderAngleValue) {
-                        this.elements.rudderAngleValue.textContent = `${Math.round(this.boat.rudderAngle * 180 / Math.PI)}°`;
-                    }
-                    break;
                 case 'ArrowRight':
-                    // Adjust rudder right
-                    const currentRudderAngle2 = this.boat.rudderAngle;
-                    this.boat.setRudderAngle(currentRudderAngle2 + 0.1);
-                    
-                    if (this.elements.rudderAngleSlider) {
-                        this.elements.rudderAngleSlider.value = Math.round(this.boat.rudderAngle * 180 / Math.PI);
-                    }
-                    
-                    if (this.elements.rudderAngleValue) {
-                        this.elements.rudderAngleValue.textContent = `${Math.round(this.boat.rudderAngle * 180 / Math.PI)}°`;
+                    if (!pressedKeys.has(e.key)) {
+                        pressedKeys.add(e.key);
+                        if (!animationFrameId) { // Only start animation if not already running
+                            lastTime = performance.now();
+                            animationFrameId = requestAnimationFrame(updateControls);
+                        }
                     }
                     break;
             }
+        });
+        
+        // Key up event - stop movement and handle rudder centering
+        document.addEventListener('keyup', (e) => {
+            switch (e.key) {
+                case 'a':
+                case 'A':
+                case 'd':
+                case 'D':
+                case 'ArrowLeft':
+                case 'ArrowRight':
+                    pressedKeys.delete(e.key);
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                        // Only set rudder to uncontrolled if neither left nor right is pressed
+                        if (!pressedKeys.has('ArrowLeft') && !pressedKeys.has('ArrowRight')) {
+                            this.boat.setRudderAngle(this.boat.rudderAngle, false);
+                        }
+                    }
+                    break;
+            }
+        });
+        
+        // Cancel animation frame when window loses focus
+        window.addEventListener('blur', () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            pressedKeys.clear();
+            // Release rudder control when window loses focus
+            this.boat.setRudderAngle(this.boat.rudderAngle, false);
         });
     }
     
@@ -769,6 +641,92 @@ class UI {
         windControlsSection.appendChild(windButtonsContainer);
         
         parentElement.appendChild(windControlsSection);
+    }
+    
+    /**
+     * Create floating controls info panel
+     */
+    createFloatingControlsInfo() {
+        const controlsInfo = document.createElement('div');
+        controlsInfo.style.position = 'absolute';
+        controlsInfo.style.top = '10px';
+        controlsInfo.style.left = '10px';
+        controlsInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        controlsInfo.style.color = 'white';
+        controlsInfo.style.padding = '10px';
+        controlsInfo.style.borderRadius = '5px';
+        controlsInfo.style.fontSize = '14px';
+        controlsInfo.style.zIndex = '1000';
+        
+        controlsInfo.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 8px;">Controls:</div>
+            <div style="display: grid; grid-template-columns: auto auto; gap: 5px;">
+                <div>⬅️ ➡️</div>
+                <div>Rudder control</div>
+                <div>A D</div>
+                <div>Sail control</div>
+                <div>🖱️ Left + Drag</div>
+                <div>Rotate camera</div>
+                <div>🖱️ Right + Drag</div>
+                <div>Pan camera</div>
+                <div>🖱️ Scroll</div>
+                <div>Zoom camera</div>
+            </div>
+        `;
+        
+        document.body.appendChild(controlsInfo);
+    }
+    
+    /**
+     * Update the UI elements
+     */
+    update() {
+        // Update wind direction display
+        const windDirectionName = this.world.getWindDirectionName();
+        
+        if (this.elements.windDirection) {
+            this.elements.windDirection.textContent = windDirectionName;
+        }
+        
+        if (this.elements.windDirectionTop) {
+            this.elements.windDirectionTop.textContent = windDirectionName;
+        }
+        
+        // Update wind arrow rotation
+        const windDirection = this.world.getWindDirection();
+        const windAngle = Math.atan2(windDirection.x, windDirection.z) * 180 / Math.PI;
+        
+        if (this.elements.windArrow) {
+            this.elements.windArrow.style.transform = `rotate(${windAngle}deg)`;
+        }
+        
+        // Update wind direction needle in compass
+        if (this.elements.windDirectionNeedle) {
+            this.elements.windDirectionNeedle.style.transform = `rotate(${windAngle}deg)`;
+        }
+        
+        // Update boat status
+        const boatSpeed = this.boat.getSpeedInKnots();
+        
+        if (this.elements.boatStatus) {
+            this.elements.boatStatus.textContent = boatSpeed < 0.1 ? 'Static' : 'Moving';
+        }
+        
+        // Update compass
+        const heading = this.boat.getHeadingInDegrees();
+        
+        if (this.elements.compassNeedle) {
+            this.elements.compassNeedle.style.transform = `rotate(${-heading}deg)`;
+        }
+        
+        if (this.elements.headingValue) {
+            this.elements.headingValue.textContent = `${Math.round(heading)}°`;
+        }
+        
+        // Update speedometer
+        if (this.elements.speedValue) {
+            this.elements.speedValue.textContent = `${boatSpeed.toFixed(1)} knots`;
+        }
     }
 }
 

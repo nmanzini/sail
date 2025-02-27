@@ -20,6 +20,7 @@ class Boat {
         this.speed = 0; // Simple speed value
         this.sailAngle = 0; // Angle of the sail relative to the boat (0 = aligned with boat)
         this.rudderAngle = 0; // Angle of the rudder
+        this.isRudderControlled = false; // Flag to track if rudder is being actively controlled
         
         // Boat properties
         this.maxSailAngle = Math.PI / 2; // 90 degrees
@@ -215,11 +216,13 @@ class Boat {
     /**
      * Set the rudder angle
      * @param {number} angle - The rudder angle in radians
+     * @param {boolean} [isFromControl=false] - Whether this angle change is from user control
      */
-    setRudderAngle(angle) {
+    setRudderAngle(angle, isFromControl = false) {
         // Clamp the angle to the maximum allowed
         this.rudderAngle = Math.max(-this.maxRudderAngle, Math.min(this.maxRudderAngle, angle));
         this.rudder.rotation.y = this.rudderAngle;
+        this.isRudderControlled = isFromControl;
     }
     
     /**
@@ -546,6 +549,27 @@ class Boat {
         
         // Apply acceleration to speed (increase sensitivity by multiplying)
         this.speed += acceleration * clampedDeltaTime * 10; // Increased factor for better response
+        
+        // Automatically center the rudder when not being controlled
+        const rudderCenteringSpeed = 0.5; // Speed at which rudder returns to center (in radians per second)
+        if (!this.isRudderControlled && Math.abs(this.rudderAngle) > 0.001) { // Only center if not controlled and not already centered
+            const centeringAmount = Math.sign(this.rudderAngle) * rudderCenteringSpeed * clampedDeltaTime;
+            // Don't overshoot zero
+            if (Math.abs(centeringAmount) > Math.abs(this.rudderAngle)) {
+                this.setRudderAngle(0);
+            } else {
+                this.setRudderAngle(this.rudderAngle - centeringAmount);
+            }
+            // Update UI elements if they exist
+            const rudderAngleSlider = document.getElementById('rudder-angle-slider');
+            const rudderAngleValue = document.getElementById('rudder-angle-value');
+            if (rudderAngleSlider) {
+                rudderAngleSlider.value = Math.round(this.rudderAngle * 180 / Math.PI);
+            }
+            if (rudderAngleValue) {
+                rudderAngleValue.textContent = `${Math.round(this.rudderAngle * 180 / Math.PI)}°`;
+            }
+        }
         
         // Apply rudder effect to change heading
         this.applyRudderEffect(clampedDeltaTime);

@@ -69,9 +69,9 @@ class SailingSimulator {
         // Set initial sail angle
         this.boat.setSailAngle(Math.PI / 4); // 45 degrees
         
-        // Set initial boat speed (5 knots)
-        const knotsToMetersPerSecond = 0.51444; // Conversion factor from knots to m/s
-        this.boat.speed = 5 * knotsToMetersPerSecond; // Set initial speed to 5 knots
+        // Set initial boat speed (10 knots)
+        const knotsToMetersPerSecond = 0.51444;
+        this.boat.speed = 10 * knotsToMetersPerSecond; // Set initial speed to 10 knots
         
         // Create UI
         this.ui = new UI(this.boat, this.world);

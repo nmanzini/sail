@@ -1,0 +1,3 @@
+- vector description
+- Add drag system that is quadratic to the speed. So calibrated so that it reaches a balanced max speed.
+- Add cannons on the side. And targets. Cannonnshoot with a parable 
