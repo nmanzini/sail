@@ -22,8 +22,57 @@ class UI {
         // Element references
         this.elements = {};
 
+        // Add responsive styles
+        this.addResponsiveStyles();
+
         // Initialize UI
         this.init();
+    }
+
+    /**
+     * Add responsive styles for mobile devices
+     */
+    addResponsiveStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            @media (max-width: 768px) {
+                #speedometer {
+                    transform: scale(0.8);
+                    transform-origin: top right;
+                }
+                #controls-panel {
+                    transform: scale(0.8);
+                    transform-origin: top left;
+                }
+                #debug-panel {
+                    transform: scale(0.8);
+                    transform-origin: top left;
+                }
+                #camera-button {
+                    transform: scale(0.8);
+                    transform-origin: bottom right;
+                }
+            }
+            @media (max-width: 480px) {
+                #speedometer {
+                    transform: scale(0.7);
+                    transform-origin: top right;
+                }
+                #controls-panel {
+                    transform: scale(0.7);
+                    transform-origin: top left;
+                }
+                #debug-panel {
+                    transform: scale(0.7);
+                    transform-origin: top left;
+                }
+                #camera-button {
+                    transform: scale(0.7);
+                    transform-origin: bottom right;
+                }
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     /**
