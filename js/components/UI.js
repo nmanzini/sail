@@ -103,49 +103,52 @@ class UI {
         const cameraButton = document.createElement('div');
         cameraButton.id = 'camera-button';
         cameraButton.style.position = 'absolute';
-        cameraButton.style.bottom = '180px'; // Position under the speedometer/compass
+        cameraButton.style.bottom = '180px';
         cameraButton.style.right = '10px';
-        cameraButton.style.width = '60px';
-        cameraButton.style.height = '60px';
-        cameraButton.style.backgroundColor = 'transparent';
+        cameraButton.style.width = '40px';
+        cameraButton.style.height = '40px';
+        cameraButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         cameraButton.style.color = 'white';
         cameraButton.style.display = 'flex';
         cameraButton.style.alignItems = 'center';
         cameraButton.style.justifyContent = 'center';
         cameraButton.style.cursor = 'pointer';
         cameraButton.style.zIndex = '1000';
-        cameraButton.style.boxShadow = 'none';
+        cameraButton.style.borderRadius = '8px';
+        cameraButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        cameraButton.style.transition = 'all 0.2s ease';
         cameraButton.style.userSelect = 'none';
         cameraButton.style.webkitUserSelect = 'none';
-        cameraButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>';
+        cameraButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>';
         cameraButton.title = 'Toggle Camera View (C)';
         
-        // Add a ripple effect to indicate it's been pressed
+        // Add hover effect
+        cameraButton.addEventListener('mouseover', () => {
+            cameraButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            cameraButton.style.transform = 'scale(1.05)';
+        });
+        
+        cameraButton.addEventListener('mouseout', () => {
+            cameraButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            cameraButton.style.transform = 'scale(1)';
+        });
+        
+        // Add click effect
         cameraButton.addEventListener('mousedown', () => {
-            cameraButton.style.transform = 'scale(0.9)';
-            cameraButton.style.opacity = '0.7';
+            cameraButton.style.transform = 'scale(0.95)';
         });
         
         cameraButton.addEventListener('mouseup', () => {
             cameraButton.style.transform = 'scale(1)';
-            cameraButton.style.opacity = '1';
-        });
-        
-        cameraButton.addEventListener('mouseleave', () => {
-            cameraButton.style.transform = 'scale(1)';
-            cameraButton.style.opacity = '1';
         });
         
         // Add click event to toggle camera mode
         cameraButton.addEventListener('click', () => {
-            // Access the main simulator instance and toggle camera
             if (window.sailingSimulator && typeof window.sailingSimulator.toggleCameraMode === 'function') {
                 window.sailingSimulator.toggleCameraMode();
                 // Update the button appearance to indicate current mode
-                cameraButton.title = `Toggle Camera View (C) - Current: ${window.sailingSimulator.cameraMode}`;
-                // Add visual indicator of current mode
                 if (window.sailingSimulator.cameraMode === 'boat') {
-                    cameraButton.querySelector('svg').style.fill = '#5eaeff';
+                    cameraButton.querySelector('svg').style.fill = '#3399ff';
                 } else {
                     cameraButton.querySelector('svg').style.fill = 'white';
                 }
