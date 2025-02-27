@@ -48,7 +48,7 @@ class Boat {
         this.mass = options.mass || 1000;
         this.dragCoefficient = options.dragCoefficient || 0.05;
         this.sailEfficiency = options.sailEfficiency || 1.0;
-        this.rudderEfficiency = options.rudderEfficiency || 30.0;
+        this.rudderEfficiency = options.rudderEfficiency || 40.0;
         this.inertia = options.inertia || 500;
         this.heelFactor = options.heelFactor || 0.08;
         this.heelRecoveryRate = options.heelRecoveryRate || 0.5;
