@@ -126,7 +126,7 @@ class UI {
      */
     toggleDebugPanel() {
         this.debugPanelVisible = !this.debugPanelVisible;
-        this.debugPanel.style.display = this.debugPanelVisible ? 'block' : 'none';
+        this.elements.debugPanel.style.display = this.debugPanelVisible ? 'block' : 'none';
     }
     
     /**
