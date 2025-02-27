@@ -649,7 +649,7 @@ class UI {
     createFloatingControlsInfo() {
         const controlsInfo = document.createElement('div');
         controlsInfo.style.position = 'absolute';
-        controlsInfo.style.top = '10px';
+        controlsInfo.style.bottom = '10px';
         controlsInfo.style.left = '10px';
         controlsInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         controlsInfo.style.color = 'white';
