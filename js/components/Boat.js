@@ -204,13 +204,13 @@ class Boat {
      * Initialize debug system with vectors and info panel
      */
     initDebugSystem() {
-        // Create debug vectors
+        // Create debug vectors with half the original length
         this.debugVectors = {
-            sailForce: this.createDebugArrow(new THREE.Vector3(0, 10, 0), 0xff0000),
-            forwardForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0x00ff00),
-            lateralForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0x0000ff),
-            dragForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0xff00ff), // Purple for drag
-            windDirection: this.createDebugArrow(new THREE.Vector3(0, 15, 0), 0xffff00, 15)
+            sailForce: this.createDebugArrow(new THREE.Vector3(0, 10, 0), 0xff0000, 7.5, "Sail Force"),
+            forwardForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0x00ff00, 5, "Forward Force"),
+            lateralForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0x0000ff, 5, "Lateral Force"),
+            dragForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0xff00ff, 5, "Drag Force"), // Purple for drag
+            windDirection: this.createDebugArrow(new THREE.Vector3(0, 15, 0), 0xffff00, 7.5, "Wind")
         };
         
         // Create debug info panel
@@ -218,17 +218,122 @@ class Boat {
     }
     
     /**
-     * Helper to create debug arrow
+     * Create a text sprite for vector labels
+     * @param {string} text - The text to display
+     * @param {number} color - The color of the text
+     * @returns {THREE.Sprite} The text sprite
      */
-    createDebugArrow(position, color, length = 10) {
+    createTextSprite(text, color) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 64;
+        
+        // Set text properties
+        context.font = '24px Arial';
+        context.fillStyle = '#ffffff';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        // Create background with slight transparency
+        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        const textWidth = context.measureText(text).width;
+        context.fillRect(
+            canvas.width / 2 - textWidth / 2 - 5,
+            canvas.height / 2 - 15,
+            textWidth + 10,
+            30
+        );
+        
+        // Draw text
+        context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+        
+        // Create sprite
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(material);
+        
+        // Scale sprite based on text width
+        sprite.scale.set(5, 1.25, 1);
+        
+        return sprite;
+    }
+    
+    /**
+     * Helper to create debug arrow
+     * @param {THREE.Vector3} position - Starting position of the arrow
+     * @param {number} color - Color of the arrow
+     * @param {number} [length=10] - Length of the arrow
+     * @param {string} [label] - Optional label for the arrow
+     * @returns {THREE.Group} Arrow with optional label
+     */
+    createDebugArrow(position, color, length = 10, label = null) {
+        // Create a group to hold arrow and text
+        const group = new THREE.Group();
+        
+        // Create arrow helper
         const arrow = new THREE.ArrowHelper(
             new THREE.Vector3(0, 0, 1),
-            position,
+            new THREE.Vector3(0, 0, 0),
             length,
             color
         );
-        this.boatGroup.add(arrow);
-        return arrow;
+        
+        group.add(arrow);
+        group.position.copy(position);
+        
+        // Add label if provided
+        let textSprite = null;
+        if (label) {
+            textSprite = this.createTextSprite(label, color);
+            // Initially position text at origin, will be updated in setDirection
+            textSprite.position.set(0, 0, 0);
+            group.add(textSprite);
+        }
+        
+        this.boatGroup.add(group);
+        
+        // Store actual direction and length for label positioning
+        group.currentDirection = new THREE.Vector3(0, 0, 1);
+        group.currentLength = length;
+        
+        // Helper function to update label position
+        const updateLabelPosition = () => {
+            if (textSprite) {
+                // Calculate the midpoint of the vector in the actual arrow direction
+                const midpoint = group.currentDirection.clone().multiplyScalar(group.currentLength / 2);
+                textSprite.position.copy(midpoint);
+                
+                // Sprites automatically face the camera in Three.js, so we don't need to set quaternion
+            }
+        };
+        
+        // Override the setDirection method
+        group.setDirection = (dir) => {
+            // Store the normalized direction
+            group.currentDirection = dir.clone().normalize();
+            
+            // Update the arrow
+            arrow.setDirection(dir);
+            
+            // Update label position based on new direction
+            updateLabelPosition();
+        };
+        
+        // Override the setLength method
+        group.setLength = (length) => {
+            // Store the new length
+            group.currentLength = length;
+            
+            // Update the arrow
+            arrow.setLength(length);
+            
+            // Update label position based on new length
+            updateLabelPosition();
+        };
+        
+        return group;
     }
     
     /**
@@ -426,7 +531,7 @@ class Boat {
     updateDebugVectors() {
         if (!this.debugMode) return;
         
-        const scaleFactor = 5.0;
+        const scaleFactor = 2.5;
         const updateVector = (vector, force) => {
             if (!vector) return;
             
@@ -438,6 +543,10 @@ class Boat {
             
             vector.setDirection(normalizedDir);
             vector.setLength(length);
+            
+            // Make sure that our custom properties are updated
+            vector.currentDirection = normalizedDir;
+            vector.currentLength = length;
         };
         
         // Update all debug vectors
@@ -456,6 +565,9 @@ class Boat {
                 new THREE.Vector3(0, 1, 0), -this.rotation
             );
             this.debugVectors.windDirection.setDirection(windDirectionLocal);
+            
+            // Make sure that our custom properties are updated
+            this.debugVectors.windDirection.currentDirection = windDirectionLocal;
         }
         
         this.updateDebugInfoPanel();
@@ -491,12 +603,12 @@ class Boat {
             <p>Rudder Angle: ${(this.rudderAngle * 180 / Math.PI).toFixed(1)}°</p>
             <p>Heel Angle: ${this.getHeelAngleInDegrees().toFixed(1)}°</p>
             <p>Turn Rate: ${turnRate.toFixed(5)} rad/s (${(turnRate * 180 / Math.PI).toFixed(2)}°/s)</p>
-            <p>Wind Direction: ${formatVector(this.world.getWindDirection())}</p>
+            <p>Wind Direction: <span style="color: #ffff00">${formatVector(this.world.getWindDirection())}</span></p>
             <p>Wind Speed: ${this.world.getWindSpeed().toFixed(2)}</p>
-            <p>Sail Force: ${formatVector(this.sailForce)}</p>
-            <p>Forward Force: ${formatVector(this.forwardForce)}</p>
-            <p>Lateral Force: ${formatVector(this.lateralForce)}</p>
-            <p>Drag Force: ${formatVector(dragForce)}</p>
+            <p>Sail Force: <span style="color: #ff0000">${formatVector(this.sailForce)}</span></p>
+            <p>Forward Force: <span style="color: #00ff00">${formatVector(this.forwardForce)}</span></p>
+            <p>Lateral Force: <span style="color: #0000ff">${formatVector(this.lateralForce)}</span></p>
+            <p>Drag Force: <span style="color: #ff00ff">${formatVector(dragForce)}</span></p>
         `;
     }
     

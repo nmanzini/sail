@@ -490,7 +490,7 @@ class UI {
         windSpeedLabel.style.marginBottom = '5px';
         windSpeedLabel.innerHTML = `
             <span>Wind Speed:</span>
-            <span id="debug-wind-speed-value">${this.world.getWindSpeed().toFixed(1)}</span>
+            <span id="debug-wind-speed-value" style="color: #3399ff;">${this.world.getWindSpeed().toFixed(1)}</span>
         `;
         
         const windSpeedSlider = document.createElement('input');
@@ -523,7 +523,7 @@ class UI {
         windVisibilityLabel.style.marginBottom = '5px';
         windVisibilityLabel.innerHTML = `
             <span>Wind Visibility Radius:</span>
-            <span id="debug-wind-visibility-value">${this.world.getWindVisibilityRadius().toFixed(0)}</span>
+            <span id="debug-wind-visibility-value" style="color: #3399ff;">${this.world.getWindVisibilityRadius().toFixed(0)}</span>
         `;
         
         const windVisibilitySlider = document.createElement('input');
@@ -558,7 +558,7 @@ class UI {
         windDirLabel.style.marginBottom = '5px';
         windDirLabel.innerHTML = `
             <span>Wind Direction:</span>
-            <span id="debug-wind-dir-value">${dirAngle}°</span>
+            <span id="debug-wind-dir-value" style="color: #3399ff;">${dirAngle}°</span>
         `;
         
         const windDirSlider = document.createElement('input');
