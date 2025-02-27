@@ -369,7 +369,7 @@ class UI {
         const pressedKeys = new Set();
         
         // Constants for control speeds (in radians per second)
-        const RUDDER_TURN_SPEED = 1.0;
+        const RUDDER_TURN_SPEED = 2.0;
         const SAIL_ADJUST_SPEED = 1.0;
         
         // Setup animation frame for continuous movement
