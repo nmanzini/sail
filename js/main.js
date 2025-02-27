@@ -76,17 +76,33 @@ class SailingSimulator {
         
         // Set initial wind to a stronger value for testing
         const initialWindDirection = new THREE.Vector3(0, 0, 1); // Wind blowing from south to north
-        this.world.setWind(initialWindDirection, 15); // Stronger wind for better visibility of forces
+        this.world.setWind(initialWindDirection, 15); // Stronger wind for better visibility of forces and easier movement
         
-        // Create boat
-        this.boat = new Boat(this.scene, this.world);
+        // Create boat with options
+        const boatOptions = {
+            // Physics options
+            mass: 1000,
+            dragCoefficient: 0.05,
+            sailEfficiency: 1.0,
+            rudderEfficiency: 40.0,
+            
+            // Visual options
+            hullLength: 15,
+            hullWidth: 5,
+            mastHeight: 23,
+            sailLength: 8,
+            sailHeight: 14
+        };
+        this.boat = new Boat(this.scene, this.world, boatOptions);
         
         // Set initial sail angle
         this.boat.setSailAngle(Math.PI / 4); // 45 degrees
         
-        // Set initial boat speed (10 knots)
-        const knotsToMetersPerSecond = 0.51444;
-        this.boat.speed = 10 * knotsToMetersPerSecond; // Set initial speed to 10 knots
+        // Set initial speed for testing
+        this.boat.setInitialSpeed(10); // 10 knots
+        
+        // Note: We cannot set speed directly as it's controlled by the physics system
+        // Initial forces will come from wind and sail interactions
         
         // Create UI
         this.ui = new UI(this.boat, this.world);
@@ -262,11 +278,12 @@ class SailingSimulator {
     updateBoatCamera() {
         // Get boat position and rotation
         const boatPos = this.boat.getPosition();
-        const boatRotation = this.boat.rotation;
+        const boatRotation = this.boat.getRotation();
         
         // Calculate position - place camera behind the stern
-        // The stern is at -hullLength/2, so we need to subtract more to go further back
-        const offset = new THREE.Vector3(0, this.cameraOffset.boat.y, -this.boat.hullLength / 2 - this.cameraOffset.boat.z);
+        // The offset values need to be adjusted based on the boat's size
+        const hullLength = 15; // Use the same value from boatOptions
+        const offset = new THREE.Vector3(0, this.cameraOffset.boat.y, -hullLength / 2 - this.cameraOffset.boat.z);
         
         // Apply boat rotation
         offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), boatRotation);

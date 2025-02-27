@@ -92,6 +92,18 @@ class MobileControls {
         rudderLabel.style.textShadow = '1px 1px 2px black';
         rudderZone.appendChild(rudderLabel);
 
+        // Add instruction for rudder
+        const rudderInstruction = document.createElement('div');
+        rudderInstruction.textContent = 'Slide left/right to steer';
+        rudderInstruction.style.position = 'absolute';
+        rudderInstruction.style.top = '10px';
+        rudderInstruction.style.width = '100%';
+        rudderInstruction.style.textAlign = 'center';
+        rudderInstruction.style.color = 'rgba(255, 255, 255, 0.7)';
+        rudderInstruction.style.fontSize = '10px';
+        rudderInstruction.style.textShadow = '1px 1px 2px black';
+        rudderZone.appendChild(rudderInstruction);
+
         // Create sail joystick zone (right side)
         const sailZone = document.createElement('div');
         sailZone.id = 'sail-zone';
@@ -110,6 +122,18 @@ class MobileControls {
         sailLabel.style.fontWeight = 'bold';
         sailLabel.style.textShadow = '1px 1px 2px black';
         sailZone.appendChild(sailLabel);
+
+        // Add instruction for sail
+        const sailInstruction = document.createElement('div');
+        sailInstruction.textContent = 'Slide left/right to adjust sail';
+        sailInstruction.style.position = 'absolute';
+        sailInstruction.style.top = '10px';
+        sailInstruction.style.width = '100%';
+        sailInstruction.style.textAlign = 'center';
+        sailInstruction.style.color = 'rgba(255, 255, 255, 0.7)';
+        sailInstruction.style.fontSize = '10px';
+        sailInstruction.style.textShadow = '1px 1px 2px black';
+        sailZone.appendChild(sailInstruction);
 
         // Add zones to container
         controlsContainer.appendChild(rudderZone);
@@ -151,16 +175,18 @@ class MobileControls {
             // Get x-axis data (-1 to 1 range)
             const xDirection = data.vector.x;
 
-            // Set rudder angle based on joystick position
-            // Scale from -1 to 1 to -maxRudderAngle to maxRudderAngle
-            const rudderAngle = xDirection * this.boat.maxRudderAngle;
-            this.boat.setRudderAngle(rudderAngle, true);
+            // Pass touch controls to the boat's control system
+            this.boat.processTouchControls({
+                rudder: xDirection
+            });
         });
 
         // Reset rudder when released
         this.joysticks.rudder.on('end', () => {
-            // Stop applying rudder input (but keep current angle)
-            this.boat.setRudderAngle(this.boat.rudderAngle, false);
+            // Pass touch controls with undefined rudder to signal release
+            this.boat.processTouchControls({
+                rudder: undefined
+            });
         });
 
         // Add event listeners for sail joystick
@@ -168,10 +194,18 @@ class MobileControls {
             // Get x-axis data (-1 to 1 range)
             const xDirection = data.vector.x;
 
-            // Set sail angle based on joystick position
-            // Scale from -1 to 1 to -maxSailAngle to maxSailAngle
-            const sailAngle = xDirection * this.boat.maxSailAngle;
-            this.boat.setSailAngle(sailAngle);
+            // Pass touch controls to the boat's control system
+            this.boat.processTouchControls({
+                sail: xDirection
+            });
+        });
+
+        // Reset sail when released
+        this.joysticks.sail.on('end', () => {
+            // Pass touch controls with undefined sail to signal release
+            this.boat.processTouchControls({
+                sail: undefined
+            });
         });
     }
 

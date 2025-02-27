@@ -526,25 +526,19 @@ class UI {
             const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
             lastTime = currentTime;
 
-            // Handle rudder movement
-            if (pressedKeys.has('ArrowLeft')) {
-                const newAngle = this.boat.rudderAngle - RUDDER_TURN_SPEED * deltaTime;
-                this.boat.setRudderAngle(newAngle, true);
-            }
-            if (pressedKeys.has('ArrowRight')) {
-                const newAngle = this.boat.rudderAngle + RUDDER_TURN_SPEED * deltaTime;
-                this.boat.setRudderAngle(newAngle, true);
-            }
-
-            // Handle sail movement
-            if (pressedKeys.has('a') || pressedKeys.has('A')) {
-                const newAngle = this.boat.sailAngle - SAIL_ADJUST_SPEED * deltaTime;
-                this.boat.setSailAngle(newAngle);
-            }
-            if (pressedKeys.has('d') || pressedKeys.has('D')) {
-                const newAngle = this.boat.sailAngle + SAIL_ADJUST_SPEED * deltaTime;
-                this.boat.setSailAngle(newAngle);
-            }
+            // Process keyboard input through boat's controls system
+            const keys = {
+                arrowleft: pressedKeys.has('ArrowLeft'),
+                arrowright: pressedKeys.has('ArrowRight'),
+                arrowup: pressedKeys.has('ArrowUp'),
+                arrowdown: pressedKeys.has('ArrowDown'),
+                a: pressedKeys.has('a') || pressedKeys.has('A'),
+                d: pressedKeys.has('d') || pressedKeys.has('D'),
+                w: pressedKeys.has('w') || pressedKeys.has('W'),
+                s: pressedKeys.has('s') || pressedKeys.has('S')
+            };
+            
+            this.boat.processKeyboardInput(keys, deltaTime);
 
             // Continue animation if any relevant keys are pressed
             if (pressedKeys.size > 0) {
@@ -557,7 +551,7 @@ class UI {
         // Key down event - start continuous movement
         document.addEventListener('keydown', (e) => {
             // Prevent default behavior for game controls
-            if (['ArrowLeft', 'ArrowRight', 'a', 'A', 'd', 'D'].includes(e.key)) {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'a', 'A', 'd', 'D', 'w', 'W', 's', 'S'].includes(e.key)) {
                 e.preventDefault();
             }
 
@@ -566,8 +560,14 @@ class UI {
                 case 'A':
                 case 'd':
                 case 'D':
+                case 'w':
+                case 'W':
+                case 's':
+                case 'S':
                 case 'ArrowLeft':
                 case 'ArrowRight':
+                case 'ArrowUp':
+                case 'ArrowDown':
                     if (!pressedKeys.has(e.key)) {
                         pressedKeys.add(e.key);
                         if (!animationFrameId) { // Only start animation if not already running
@@ -579,22 +579,22 @@ class UI {
             }
         });
 
-        // Key up event - stop movement and handle rudder centering
+        // Key up event - stop movement
         document.addEventListener('keyup', (e) => {
             switch (e.key) {
                 case 'a':
                 case 'A':
                 case 'd':
                 case 'D':
+                case 'w':
+                case 'W':
+                case 's':
+                case 'S':
                 case 'ArrowLeft':
                 case 'ArrowRight':
+                case 'ArrowUp':
+                case 'ArrowDown':
                     pressedKeys.delete(e.key);
-                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                        // Only set rudder to uncontrolled if neither left nor right is pressed
-                        if (!pressedKeys.has('ArrowLeft') && !pressedKeys.has('ArrowRight')) {
-                            this.boat.setRudderAngle(this.boat.rudderAngle, false);
-                        }
-                    }
                     break;
             }
         });
@@ -606,8 +606,6 @@ class UI {
                 animationFrameId = null;
             }
             pressedKeys.clear();
-            // Release rudder control when window loses focus
-            this.boat.setRudderAngle(this.boat.rudderAngle, false);
         });
     }
 
@@ -876,15 +874,22 @@ class UI {
         content.innerHTML = `
             <div style="margin-bottom: 15px;">
                 <h4 style="margin: 0 0 10px 0; color: #3399ff;">Keyboard Controls</h4>
-                <p style="margin: 5px 0;">A/D: Adjust sail angle</p>
-                <p style="margin: 5px 0;">Left/Right Arrow: Adjust rudder</p>
-                <p style="margin: 5px 0;">C: Toggle camera view</p>
+                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">A/Left Arrow:</span> Turn boat left</p>
+                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">D/Right Arrow:</span> Turn boat right</p>
+                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">W/Up Arrow:</span> Increase sail angle</p>
+                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">S/Down Arrow:</span> Decrease sail angle</p>
+                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">C:</span> Toggle camera view</p>
             </div>
-            <div>
+            <div style="margin-bottom: 15px;">
                 <h4 style="margin: 0 0 10px 0; color: #3399ff;">Mouse Controls</h4>
                 <p style="margin: 5px 0;">Left click + drag: Rotate camera</p>
                 <p style="margin: 5px 0;">Right click + drag: Pan camera</p>
                 <p style="margin: 5px 0;">Scroll: Zoom camera</p>
+            </div>
+            <div>
+                <h4 style="margin: 0 0 10px 0; color: #3399ff;">Mobile Controls</h4>
+                <p style="margin: 5px 0;">Left joystick: Control rudder (steering)</p>
+                <p style="margin: 5px 0;">Right joystick: Control sail angle</p>
             </div>
         `;
 
