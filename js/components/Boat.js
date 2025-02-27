@@ -435,39 +435,31 @@ class Boat {
         const sailDirection = this.getDirectionVector(this.rotation + this.sailAngle);
         const sailNormal = this.getDirectionVector(this.rotation + this.sailAngle + Math.PI/2);
         
-        // Determine which side the sail is on
-        // Positive sailAngle means sail is on port/left side
-        // Negative sailAngle means sail is on starboard/right side
-        const sailOnLeftSide = this.sailAngle > 0;
-        const sailOnRightSide = this.sailAngle < 0;
-        
-        // Determine if wind is coming from the left or right of the boat
-        // Use cross product between boat forward direction and wind direction
+        // Get boat direction
         const boatDirection = this.getDirectionVector(this.rotation);
-        const windCrossBoat = new THREE.Vector3().crossVectors(boatDirection, windDirection);
-        const windFromLeftSide = windCrossBoat.y > 0;
-        const windFromRightSide = windCrossBoat.y < 0;
         
-        // Check if wind comes from the appropriate side
-        // Wind must come from the opposite side of where the sail is positioned
-        const validWindDirection = (sailOnLeftSide && windFromRightSide) || 
-                                   (sailOnRightSide && windFromLeftSide);
+        // Calculate the vector representing from which side the wind is hitting the sail
+        // Use cross product: positive Y means wind is from left side of sail
+        const windCrossSail = new THREE.Vector3().crossVectors(sailDirection, windDirection);
         
-        // If wind is not from valid direction, no force is generated
-        if (!validWindDirection) {
-            return new THREE.Vector3();
-        }
+        // Calculate sign of sail angle to determine sail side
+        // Positive means sail is on port/left side, negative means starboard/right side
+        const sailSide = Math.sign(this.sailAngle);
+        
+        // Sail directionality factor
+        // When windCrossSail.y and sailSide have opposite signs, wind is hitting the sail from the proper side
+        // When they have the same sign, force should be zero
+        const windSailFactor = Math.max(0, -sailSide * Math.sign(windCrossSail.y));
         
         // Calculate dot product for wind-sail angle
         const dotProduct = windDirection.dot(sailDirection);
         const angle = Math.acos(Math.min(Math.max(dotProduct, -1), 1));
         
-        // Force is maximum when wind is perpendicular to sail
-        const forceMagnitude = Math.sin(angle) * windStrength * this.sailEfficiency;
+        // Force is maximum when wind is perpendicular to sail and coming from the correct side
+        const forceMagnitude = Math.sin(angle) * windStrength * this.sailEfficiency * windSailFactor;
         
         // Determine force direction based on which side wind hits sail
-        const crossProduct = new THREE.Vector3().crossVectors(sailDirection, windDirection);
-        const forceDirection = crossProduct.y > 0 ? sailNormal.clone() : sailNormal.clone().negate();
+        const forceDirection = windCrossSail.y > 0 ? sailNormal.clone() : sailNormal.clone().negate();
         
         return forceDirection.multiplyScalar(forceMagnitude);
     }
