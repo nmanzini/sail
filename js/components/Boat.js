@@ -16,7 +16,7 @@ class Boat {
         
         // Boat state
         this.position = new THREE.Vector3(0, 0, 0);
-        this.rotation = 0; // Rotation around Y axis (heading)
+        this.rotation = Math.PI / 2; // Rotation around Y axis (heading) - start facing east
         this.speed = 0; // Simple speed value
         this.sailAngle = 0; // Angle of the sail relative to the boat (0 = aligned with boat)
         this.rudderAngle = 0; // Angle of the rudder
@@ -201,8 +201,8 @@ class Boat {
         // Position boat at origin
         this.boatGroup.position.set(0, 0, 0);
         
-        // Rotate boat to face forward (positive Z)
-        this.boatGroup.rotation.y = Math.PI; // Rotate 180 degrees so the pointy end faces forward
+        // Rotate boat to face east (positive X)
+        this.boatGroup.rotation.y = Math.PI / 2; // 90 degrees to face east
     }
     
     /**
