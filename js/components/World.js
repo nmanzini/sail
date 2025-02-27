@@ -120,7 +120,8 @@ class World {
             { x: 200, z: 200 },
             { x: -300, z: 100 },
             { x: 0, z: -400 },
-            { x: -200, z: -250 }
+            { x: -200, z: -250 },
+            { x: 400, z: -100 }  // Special eastern island
         ];
         
         islandPositions.forEach(pos => {
