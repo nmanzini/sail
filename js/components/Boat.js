@@ -48,7 +48,7 @@ class Boat {
         this.mass = options.mass || 1000;
         this.dragCoefficient = options.dragCoefficient || 0.05;
         this.sailEfficiency = options.sailEfficiency || 1.0;
-        this.rudderEfficiency = options.rudderEfficiency || 10.0;
+        this.rudderEfficiency = options.rudderEfficiency || 30.0;
         this.inertia = options.inertia || 500;
         this.heelFactor = options.heelFactor || 0.08;
         this.heelRecoveryRate = options.heelRecoveryRate || 0.5;
@@ -209,6 +209,7 @@ class Boat {
             sailForce: this.createDebugArrow(new THREE.Vector3(0, 10, 0), 0xff0000),
             forwardForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0x00ff00),
             lateralForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0x0000ff),
+            dragForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0xff00ff), // Purple for drag
             windDirection: this.createDebugArrow(new THREE.Vector3(0, 15, 0), 0xffff00, 15)
         };
         
@@ -261,7 +262,31 @@ class Boat {
      * @param {number} angle - The sail angle in radians
      */
     setSailAngle(angle) {
-        this.sailAngle = Math.max(-this.maxSailAngle, Math.min(this.maxSailAngle, angle));
+        // Get current wind direction
+        const windDirection = this.world.getWindDirection().clone();
+        const boatDirection = this.getDirectionVector(this.rotation);
+        
+        // Determine if wind is coming from the left or right of the boat
+        const windCrossBoat = new THREE.Vector3().crossVectors(boatDirection, windDirection);
+        const windFromLeftSide = windCrossBoat.y > 0;
+        const windFromRightSide = windCrossBoat.y < 0;
+        
+        // Define minimum sail angle offset from center (in radians)
+        // This prevents the sail from reaching exactly center
+        const minSailOffset = 0.05; // About 3 degrees
+        
+        // Constrain sail angle based on wind direction
+        // If wind from left side, sail cannot go past center to the left (can't go below minSailOffset)
+        // If wind from right side, sail cannot go past center to the right (can't go above -minSailOffset)
+        let constrainedAngle = angle;
+        if (windFromLeftSide && angle > -minSailOffset) {
+            constrainedAngle = -minSailOffset;
+        } else if (windFromRightSide && angle < minSailOffset) {
+            constrainedAngle = minSailOffset;
+        }
+        
+        // Apply normal bounds for sail angle
+        this.sailAngle = Math.max(-this.maxSailAngle, Math.min(this.maxSailAngle, constrainedAngle));
         this.sail.rotation.y = this.sailAngle;
     }
     
@@ -304,6 +329,29 @@ class Boat {
         // Calculate sail direction and normal vectors
         const sailDirection = this.getDirectionVector(this.rotation + this.sailAngle);
         const sailNormal = this.getDirectionVector(this.rotation + this.sailAngle + Math.PI/2);
+        
+        // Determine which side the sail is on
+        // Positive sailAngle means sail is on port/left side
+        // Negative sailAngle means sail is on starboard/right side
+        const sailOnLeftSide = this.sailAngle > 0;
+        const sailOnRightSide = this.sailAngle < 0;
+        
+        // Determine if wind is coming from the left or right of the boat
+        // Use cross product between boat forward direction and wind direction
+        const boatDirection = this.getDirectionVector(this.rotation);
+        const windCrossBoat = new THREE.Vector3().crossVectors(boatDirection, windDirection);
+        const windFromLeftSide = windCrossBoat.y > 0;
+        const windFromRightSide = windCrossBoat.y < 0;
+        
+        // Check if wind comes from the appropriate side
+        // Wind must come from the opposite side of where the sail is positioned
+        const validWindDirection = (sailOnLeftSide && windFromRightSide) || 
+                                   (sailOnRightSide && windFromLeftSide);
+        
+        // If wind is not from valid direction, no force is generated
+        if (!validWindDirection) {
+            return new THREE.Vector3();
+        }
         
         // Calculate dot product for wind-sail angle
         const dotProduct = windDirection.dot(sailDirection);
@@ -358,13 +406,18 @@ class Boat {
     }
     
     /**
-     * Apply drag to slow down the boat
-     * @param {number} deltaTime - Time since last update in seconds
+     * Calculate the current drag force vector
+     * @returns {THREE.Vector3} The drag force vector
      */
-    applyDrag(deltaTime) {
-        const dragMagnitude = this.dragCoefficient * this.speed * this.speed;
-        const deceleration = dragMagnitude / this.mass;
-        this.speed = Math.max(0, this.speed - deceleration * deltaTime);
+    calculateDragForce() {
+        // Standard quadratic drag model (proportional to v²)
+        const dragMagnitude = this.dragCoefficient * this.speed * this.speed * this.speed;
+        
+        // Drag always opposes motion, so it's in the opposite direction of travel
+        const boatDirection = this.getDirectionVector(this.rotation);
+        
+        // Return the drag force vector (negative because it opposes motion)
+        return boatDirection.clone().multiplyScalar(-dragMagnitude);
     }
     
     /**
@@ -391,6 +444,10 @@ class Boat {
         updateVector(this.debugVectors.sailForce, this.sailForce);
         updateVector(this.debugVectors.forwardForce, this.forwardForce);
         updateVector(this.debugVectors.lateralForce, this.lateralForce);
+        
+        // Update drag force vector
+        const dragForce = this.calculateDragForce();
+        updateVector(this.debugVectors.dragForce, dragForce);
         
         // Update wind direction vector
         if (this.debugVectors.windDirection) {
@@ -421,6 +478,9 @@ class Boat {
         const speedFactor = minSpeedFactor + (this.speed * 0.5);
         const turnRate = -1 * this.rudderAngle * speedFactor * this.rudderEfficiency / this.inertia;
         
+        // Get drag force for display
+        const dragForce = this.calculateDragForce();
+        
         // Update panel content with boat info
         panel.innerHTML = `
             <h3>Boat Debug Info</h3>
@@ -436,6 +496,7 @@ class Boat {
             <p>Sail Force: ${formatVector(this.sailForce)}</p>
             <p>Forward Force: ${formatVector(this.forwardForce)}</p>
             <p>Lateral Force: ${formatVector(this.lateralForce)}</p>
+            <p>Drag Force: ${formatVector(dragForce)}</p>
         `;
     }
     
@@ -513,14 +574,22 @@ class Boat {
         this.sailForce = this.calculateSailForce();
         this.splitSailForce(this.sailForce);
         
-        // Apply forces to update speed
-        const acceleration = this.forwardForce.length() / this.mass;
-        this.speed += acceleration * clampedDeltaTime * 10;
+        // Get the drag force as a vector
+        const dragForceVector = this.calculateDragForce();
+        // Extract just the magnitude (negative value)
+        const dragForce = dragForceVector.length() * -1;
+        
+        // Combine forces to calculate net acceleration
+        const forwardForceMagnitude = this.forwardForce.length();
+        const netForce = forwardForceMagnitude + dragForce; // Sum of propulsion and drag
+        const acceleration = netForce / this.mass;
+        
+        // Apply acceleration to update speed (always keep speed >= 0)
+        this.speed = Math.max(0, this.speed + acceleration * clampedDeltaTime * 10);
         
         // Update boat controls
         this.updateRudderCentering(clampedDeltaTime);
         this.applyRudderEffect(clampedDeltaTime);
-        this.applyDrag(clampedDeltaTime);
         
         // Update position based on speed and direction
         const forwardDir = this.getDirectionVector(this.rotation);
@@ -594,6 +663,14 @@ class Boat {
     
     getLateralForce() {
         return this.lateralForce.clone();
+    }
+    
+    /**
+     * Get the drag force for debugging
+     * @returns {THREE.Vector3} The drag force vector
+     */
+    getDragForce() {
+        return this.calculateDragForce();
     }
 }
 
