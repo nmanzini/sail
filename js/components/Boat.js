@@ -235,15 +235,8 @@ class Boat {
         const windDirection = this.world.getWindDirection().clone();
         const windStrength = this.world.getWindSpeed();
         
-        // DEBUGGING - Log wind info occasionally
-        if (this.debugMode && Math.random() < 0.05) {
-            console.log("Wind Direction:", windDirection);
-            console.log("Wind Strength:", windStrength);
-        }
-        
         // If wind strength is 0, no force is generated
         if (windStrength <= 0) {
-            console.warn("No wind strength detected!");
             return new THREE.Vector3(0, 0, 0);
         }
         
@@ -272,14 +265,6 @@ class Boat {
         // and zero when wind is parallel to sail (angle = 0 or π)
         // We use sin function which gives max value at π/2 and 0 at 0 and π
         const forceMagnitude = Math.sin(angle) * windStrength * this.sailEfficiency;
-        
-        // DEBUGGING - Log sail physics occasionally
-        if (this.debugMode && Math.random() < 0.05) {
-            console.log("Sail Direction:", sailDirection);
-            console.log("Sail Normal:", sailNormal);
-            console.log("Angle between wind and sail:", (angle * 180 / Math.PI).toFixed(2) + "°");
-            console.log("Force Magnitude:", forceMagnitude);
-        }
         
         // Force direction is along the sail normal
         // Determine if wind is hitting sail from port or starboard side
@@ -335,14 +320,6 @@ class Boat {
         
         // Apply turn rate to rotation
         this.rotation += turnRate * deltaTime;
-        
-        // DEBUGGING - Log rudder effect occasionally
-        if (this.debugMode && Math.random() < 0.05) {
-            console.log("Rudder angle:", (this.rudderAngle * 180 / Math.PI).toFixed(2) + "°");
-            console.log("Speed factor:", speedFactor.toFixed(2));
-            console.log("Turn rate:", turnRate.toFixed(4), "rad/s", (turnRate * 180 / Math.PI).toFixed(2) + "°/s");
-            console.log("Boat speed:", this.speed.toFixed(2), "m/s");
-        }
         
         // Normalize rotation to 0-2π range
         this.rotation = this.rotation % (Math.PI * 2);
@@ -542,11 +519,6 @@ class Boat {
         // Apply forward force to update speed
         const acceleration = this.forwardForce.length() / this.mass;
         
-        // DEBUGGING - Log acceleration occasionally
-        if (this.debugMode && Math.random() < 0.05) {
-            console.log("Acceleration:", acceleration, "m/s²");
-        }
-        
         // Apply acceleration to speed (increase sensitivity by multiplying)
         this.speed += acceleration * clampedDeltaTime * 10; // Increased factor for better response
         
@@ -576,11 +548,6 @@ class Boat {
         
         // Apply drag to slow down
         this.applyDrag(clampedDeltaTime);
-        
-        // DEBUGGING - Log speed occasionally
-        if (this.debugMode && Math.random() < 0.05) {
-            console.log("Current Speed:", this.speed, "m/s");
-        }
         
         // Update position based on speed and direction
         const forwardDir = new THREE.Vector3(

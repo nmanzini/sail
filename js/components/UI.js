@@ -115,7 +115,6 @@ class UI {
         
         debugButton.addEventListener('click', (e) => {
             e.stopPropagation(); // Prevent click from propagating
-            console.log('Debug button clicked'); // Debug log
             this.toggleDebugPanel();
         });
         
@@ -127,11 +126,7 @@ class UI {
      */
     toggleDebugPanel() {
         this.debugPanelVisible = !this.debugPanelVisible;
-        console.log('Debug panel visibility:', this.debugPanelVisible); // Debug log
-        
-        if (this.elements.debugPanel) {
-            this.elements.debugPanel.style.display = this.debugPanelVisible ? 'block' : 'none';
-        }
+        this.debugPanel.style.display = this.debugPanelVisible ? 'block' : 'none';
     }
     
     /**

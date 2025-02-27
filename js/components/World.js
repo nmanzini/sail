@@ -13,7 +13,7 @@ class World {
         this.windSpeed = 5.0; // Increased default wind speed for better sailing
         this.windParticles = null;
         this.particleSystem = null;
-        this.windVisibilityRadius = 800; // Radius around camera where wind particles are visible
+        this.windVisibilityRadius = 500; // Radius around camera where wind particles are visible
         
         // Initialize the world
         this.init();
@@ -322,10 +322,6 @@ class World {
         
         // Set the wind speed (ensure it's positive)
         this.windSpeed = Math.max(0, speed);
-        
-        console.log("Wind updated:", 
-            "Direction:", this.windDirection, 
-            "Speed:", this.windSpeed);
     }
     
     /**
