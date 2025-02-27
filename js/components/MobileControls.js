@@ -66,12 +66,12 @@ class MobileControls {
         controlsContainer.style.bottom = '0';
         controlsContainer.style.left = '0';
         controlsContainer.style.width = '100%';
-        controlsContainer.style.height = '180px';
+        controlsContainer.style.height = '150px';
+        controlsContainer.style.paddingBottom = '10px';
         controlsContainer.style.display = 'flex';
         controlsContainer.style.justifyContent = 'space-between';
         controlsContainer.style.zIndex = '1000';
-        controlsContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
-        controlsContainer.style.backdropFilter = 'blur(3px)';
+        controlsContainer.style.backgroundColor = 'transparent';
 
         // Create rudder joystick zone (left side)
         const rudderZone = document.createElement('div');

@@ -302,5 +302,18 @@ class SailingSimulator {
 
 // Create and start the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new SailingSimulator();
+    // Create a global reference to the simulator for UI elements to access
+    window.sailingSimulator = new SailingSimulator();
+    console.log('Simulator initialized and attached to window object');
+    
+    // Add debug method to verify simulator is accessible
+    window.testCameraToggle = function() {
+        if (window.sailingSimulator && typeof window.sailingSimulator.toggleCameraMode === 'function') {
+            window.sailingSimulator.toggleCameraMode();
+            console.log('Camera toggled to: ' + window.sailingSimulator.cameraMode);
+            return true;
+        }
+        console.error('Simulator or toggleCameraMode function not available');
+        return false;
+    };
 }); 
