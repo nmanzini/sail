@@ -91,6 +91,9 @@ class UI {
         
         this.createControlsPanel();
 
+        // Add author overlay at the top
+        this.createAuthorOverlay();
+
         // Store references to all elements we'll need to update
         this.cacheElementReferences();
 
@@ -976,6 +979,51 @@ class UI {
         } else {
             console.error('Simulator or toggleCameraMode function not available');
         }
+    }
+
+    /**
+     * Creates an overlay with the author's name and X.com link
+     */
+    createAuthorOverlay() {
+        const authorOverlay = document.createElement('div');
+        authorOverlay.id = 'author-overlay';
+        authorOverlay.style.position = 'absolute';
+        authorOverlay.style.top = '10px';
+        authorOverlay.style.left = '50%';
+        authorOverlay.style.transform = 'translateX(-50%)';
+        authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        authorOverlay.style.color = 'white';
+        authorOverlay.style.padding = '8px 12px';
+        authorOverlay.style.borderRadius = '4px';
+        authorOverlay.style.fontFamily = 'Arial, sans-serif';
+        authorOverlay.style.fontSize = '14px';
+        authorOverlay.style.zIndex = '1000';
+        authorOverlay.style.backdropFilter = 'blur(4px)';
+        authorOverlay.style.WebkitBackdropFilter = 'blur(4px)';
+        authorOverlay.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+        
+        const authorLink = document.createElement('a');
+        authorLink.href = 'https://x.com/nicolamanzini';
+        authorLink.target = '_blank';
+        authorLink.rel = 'noopener noreferrer';
+        authorLink.textContent = '@nicolamanzini';
+        authorLink.style.color = '#1DA1F2'; // X.com blue color
+        authorLink.style.textDecoration = 'none';
+        authorLink.style.fontWeight = 'bold';
+        
+        authorOverlay.appendChild(authorLink);
+        document.body.appendChild(authorOverlay);
+        
+        // Add hover effect
+        authorLink.addEventListener('mouseover', () => {
+            authorLink.style.textDecoration = 'underline';
+            authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        });
+        
+        authorLink.addEventListener('mouseout', () => {
+            authorLink.style.textDecoration = 'none';
+            authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        });
     }
 }
 
