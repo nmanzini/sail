@@ -26,7 +26,7 @@ class Sail {
         this.lastTime = 0;
         
         // Camera modes
-        this.cameraMode = 'boat'; // 'orbit' or 'boat'
+        this.cameraMode = 'orbit'; // Changed from 'boat' to 'orbit' as default
         this.cameraOffset = {
             boat: new THREE.Vector3(0, 4, 0
             ) // Position closer to the boat (reduced height and distance)
@@ -51,8 +51,8 @@ class Sail {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87CEEB); // Sky blue background
         
-        // Create camera with wider FOV for more immersive view
-        this.camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 2000);
+        // Create camera with a default FOV for orbit mode
+        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
         this.camera.position.set(0, 40, 70); // Higher and further back for better view
         this.camera.lookAt(0, 0, 0);
         
@@ -71,10 +71,8 @@ class Sail {
         this.controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below the ground plane
         this.controls.target.set(0, 0, 0); // Set target to boat position
         
-        // If starting in boat mode, disable orbit controls
-        if (this.cameraMode === 'boat') {
-            this.controls.enabled = false;
-        }
+        // Orbit controls are enabled by default since we're starting in orbit mode
+        this.controls.enabled = true;
         
         // Create world and pass camera reference for wind particles
         this.world = new World(this.scene, this.camera);
@@ -110,13 +108,33 @@ class Sail {
         // Initial forces will come from wind and sail interactions
         
         // Create UI
-        this.ui = new UI(this.boat, this.world);
+        this.ui = new UI(this);
         
-        // Create touch controls for all devices (previously mobile-only)
-        this.mobileControls = new MobileControls(this.boat);
+        // Add mobile controls if needed
+        this.mobileControls = window.innerWidth < 768 ? new MobileControls(this) : null;
         
-        // Set up camera controls
+        // Set up camera controls and handle device-specific behaviors
         this.setupCameraControls();
+        
+        // Position camera to start with a good view of the boat
+        // If in orbit mode, position the camera with a better viewing angle
+        if (this.cameraMode === 'orbit') {
+            // Use a wider angle and closer position for a more engaging view
+            const startingDistance = 50;
+            // Position the camera more from behind and slightly higher
+            this.camera.position.set(
+                -startingDistance * 0.5,  // More to the left/back
+                startingDistance * 0.4,   // Not as high
+                -startingDistance * 0.7   // Behind the boat
+            );
+            // Look slightly ahead of the boat's starting position
+            this.controls.target.set(0, 0, 10);
+            this.camera.lookAt(this.controls.target);
+            this.controls.update();
+        }
+        
+        // Create a camera toggle button in the UI
+        this.createCameraToggleButton();
         
         // Handle window resize
         window.addEventListener('resize', this.onWindowResize.bind(this));
@@ -160,10 +178,21 @@ class Sail {
     update(deltaTime) {
         // Update orbit controls if in orbit mode
         if (this.cameraMode === 'orbit') {
-            this.controls.update();
+            // Smoothly update camera target to follow boat
+            const boatPosition = this.boat.getPosition();
+            const currentTarget = this.controls.target.clone();
             
-            // Update camera target to follow boat
-            this.controls.target.copy(this.boat.getPosition());
+            // Calculate a smoothing factor based on deltaTime
+            const smoothingFactor = Math.min(1.0, deltaTime * 3.0);
+            
+            // Lerp (linear interpolation) between current target and boat position
+            this.controls.target.lerpVectors(
+                currentTarget,
+                boatPosition,
+                smoothingFactor
+            );
+            
+            this.controls.update();
         } else if (this.cameraMode === 'boat') {
             // Update in-boat camera position
             this.updateBoatCamera();
@@ -319,6 +348,35 @@ class Sail {
         const lookAtPos = this.camera.position.clone().add(forwardDir.multiplyScalar(20));
         
         this.camera.lookAt(lookAtPos);
+    }
+    
+    /**
+     * Creates a button in the UI for toggling camera mode
+     */
+    createCameraToggleButton() {
+        const controlsContainer = document.getElementById('controls-container');
+        if (!controlsContainer) return;
+
+        const cameraButton = document.createElement('button');
+        cameraButton.id = 'camera-toggle-btn';
+        cameraButton.className = 'control-button';
+        cameraButton.textContent = 'Toggle Camera (C)';
+        cameraButton.style.position = 'absolute';
+        cameraButton.style.top = '10px';
+        cameraButton.style.right = '10px';
+        cameraButton.style.padding = '8px 12px';
+        cameraButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        cameraButton.style.color = 'white';
+        cameraButton.style.border = 'none';
+        cameraButton.style.borderRadius = '4px';
+        cameraButton.style.cursor = 'pointer';
+        cameraButton.style.zIndex = '1000';
+
+        cameraButton.addEventListener('click', () => {
+            this.toggleCameraMode();
+        });
+
+        controlsContainer.appendChild(cameraButton);
     }
 }
 

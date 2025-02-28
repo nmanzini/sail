@@ -3,8 +3,9 @@
  * (No longer mobile-specific)
  */
 class MobileControls {
-    constructor(boat) {
-        this.boat = boat;
+    constructor(app) {
+        this.app = app;
+        this.boat = app.boat;
         // Always create touch controls, not just on mobile
         this.joysticks = {
             rudder: null,

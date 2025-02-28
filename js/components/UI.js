@@ -4,9 +4,10 @@ import * as THREE from 'three';
  * UI class for handling all user interface elements
  */
 class UI {
-    constructor(boat, world) {
-        this.boat = boat;
-        this.world = world;
+    constructor(app) {
+        this.app = app;
+        this.boat = app.boat;
+        this.world = app.world;
 
         // UI elements
         this.infoPanel = null;
