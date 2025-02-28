@@ -105,7 +105,7 @@ class Sail {
         this.ui = new UI(this);
         
         // Add mobile controls if needed
-        this.mobileControls = window.innerWidth < 768 ? new MobileControls(this) : null;
+        this.mobileControls = new MobileControls(this);
         
         // Set up camera controls and handle device-specific behaviors
         this.setupCameraControls();
