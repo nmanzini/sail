@@ -940,7 +940,7 @@ class UI {
         if (window.sail && typeof window.sail.toggleCameraMode === 'function') {
             window.sail.toggleCameraMode();
             // Update the button appearance to indicate current mode
-            if (window.sail.cameraMode === 'firstPerson') {
+            if (window.sail.getCameraMode() === 'firstPerson') {
                 this.elements.cameraButton.querySelector('svg').style.fill = '#3399ff';
             } else {
                 this.elements.cameraButton.querySelector('svg').style.fill = 'white';
