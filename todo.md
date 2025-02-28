@@ -1,14 +1,13 @@
 # TODO
 
+## usage
+- analytics
+- add way to sahre a screenshot on x.com and tag me @nicolamanzini
 
 ## UI
-- Add vector informations system to show forces acting on boat
-- sea animation
-- ✓ camera modes
-
+- more realisti sea. maybe an animation
 
 ## Physics
-- Implement realistic quadratic drag force (F = -kv²) to create natural speed limit
 
 
 ## Combat System
