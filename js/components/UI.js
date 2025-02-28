@@ -782,7 +782,8 @@ class UI {
         // Update wind direction needle in compass - get element directly
         const windDirectionNeedle = document.getElementById('wind-direction-needle');
         if (windDirectionNeedle) {
-            windDirectionNeedle.style.transform = `rotate(${windAngle}deg)`;
+            // Reverse the angle to make compass turn in the opposite direction
+            windDirectionNeedle.style.transform = `rotate(${-windAngle}deg)`;
         }
 
         // Update compass
