@@ -83,6 +83,9 @@ class Boat {
         const state = this.dynamics.getState();
         const forces = this.dynamics.getForces();
         
+        // Add wind direction to state for flag animation
+        state.windDirection = this.world.getWindDirection();
+        
         // Update visual model
         this.model.update(state);
         

@@ -30,10 +30,12 @@ class BoatModel {
         // Boat dimensions
         this.hullLength = options.hullLength || 15;
         this.hullWidth = options.hullWidth || 5;
-        this.mastHeight = options.mastHeight || 23;
+        this.mastHeight = options.mastHeight || 20;
         this.sailLength = options.sailLength || 8;
         this.sailHeight = options.sailHeight || 14;
         this.boomLength = options.boomLength || this.sailLength + 1;
+        this.flagWidth = options.flagWidth || 2;
+        this.flagHeight = options.flagHeight || 1;
         
         // Debug vectors
         this.debugVectors = {};
@@ -52,6 +54,7 @@ class BoatModel {
         this.createMast();
         this.createSail();
         this.createRudder();
+        this.createFlag();
         
         // Position boat at origin and rotate to face east
         this.boatGroup.position.set(0, 0, 0);
@@ -167,6 +170,37 @@ class BoatModel {
         this.rudder.add(rudderMesh);
         this.rudder.position.set(0, 0, -this.hullLength / 2);
         this.boatGroup.add(this.rudder);
+    }
+    
+    /**
+     * Create a flag at the top of the mast
+     */
+    createFlag() {
+        this.flag = new THREE.Group();
+        
+        // Create flag shape
+        const flagGeometry = new THREE.PlaneGeometry(this.flagWidth, this.flagHeight);
+        const flagMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0xff0000, 
+            side: THREE.DoubleSide,
+            transparent: false,
+            opacity: 1.0
+        });
+        
+        const flagMesh = new THREE.Mesh(flagGeometry, flagMaterial);
+        
+        // Position flag to extend from the mast along Z axis
+        flagMesh.position.set(0, 0, this.flagWidth/2);
+        
+        // Rotate 90 degrees around the mast (Y) axis
+        flagMesh.rotation.y = Math.PI/2;
+        
+        this.flag.add(flagMesh);
+        
+        // Position the flag group at the top of the mast, offset down by half the flag height
+        this.flag.position.y = this.mastHeight - (this.flagHeight/2);
+        
+        this.boatGroup.add(this.flag);
     }
     
     /**
@@ -315,6 +349,32 @@ class BoatModel {
         
         // Update heel angle
         this.boatGroup.rotation.z = state.heelAngle;
+        
+        // Update flag direction if wind direction is available
+        if (state.windDirection) {
+            this.updateFlagDirection(state.windDirection, state.rotation);
+        }
+    }
+    
+    /**
+     * Update flag direction based on wind direction
+     * @param {THREE.Vector3} windDirection - The current wind direction
+     * @param {number} boatRotation - Current boat rotation
+     */
+    updateFlagDirection(windDirection, boatRotation) {
+        if (!this.flag) return;
+        
+        // Convert wind direction to local boat space
+        const localWindDirection = windDirection.clone().applyAxisAngle(
+            new THREE.Vector3(0, 1, 0), -boatRotation
+        );
+        
+        // Calculate rotation for the flag based on wind direction
+        // We want the flag to point in the direction the wind is blowing toward
+        const angle = Math.atan2(localWindDirection.x, localWindDirection.z);
+        
+        // Set flag rotation (around Y axis)
+        this.flag.rotation.y = angle;
     }
     
     /**

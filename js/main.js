@@ -86,14 +86,9 @@ class Sail {
             mass: 1000,
             dragCoefficient: 0.05,
             sailEfficiency: 1.0,
-            rudderEfficiency: 40.0,
+            rudderEfficiency: 40.0
             
-            // Visual options
-            hullLength: 15,
-            hullWidth: 5,
-            mastHeight: 23,
-            sailLength: 8,
-            sailHeight: 14
+            // Using all default visual options from BoatModel
         };
         this.boat = new Boat(this.scene, this.world, boatOptions);
         
