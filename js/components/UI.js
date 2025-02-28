@@ -46,9 +46,16 @@ class UI {
                     transform: scale(0.8);
                     transform-origin: bottom right;
                 }
-                #feedback-button {
+                #sound-toggle-btn {
                     transform: scale(0.8);
                     transform-origin: bottom right;
+                }
+                #button-container {
+                    transform: scale(0.8);
+                    transform-origin: center right;
+                }
+                #author-overlay {
+                    transform: scale(0.9);
                 }
             }
             @media (max-width: 480px) {
@@ -64,9 +71,16 @@ class UI {
                     transform: scale(0.7);
                     transform-origin: bottom right;
                 }
-                #feedback-button {
+                #sound-toggle-btn {
                     transform: scale(0.7);
                     transform-origin: bottom right;
+                }
+                #button-container {
+                    transform: scale(0.7);
+                    transform-origin: center right;
+                }
+                #author-overlay {
+                    transform: scale(0.8);
                 }
             }
         `;
@@ -87,12 +101,16 @@ class UI {
         // Add buttons to the container
         this.createCameraButton();
         this.createSoundButton();
-        this.createFeedbackButton();
         
         this.createControlsPanel();
 
         // Add author overlay at the top
-        this.createAuthorOverlay();
+        // Use author name from app if available, otherwise use default
+        let authorName = '@nicolamanzini';
+        if (this.app && this.app.config && this.app.config.authorName) {
+            authorName = this.app.config.authorName;
+        }
+        this.createAuthorOverlay(authorName);
 
         // Store references to all elements we'll need to update
         this.cacheElementReferences();
@@ -810,56 +828,7 @@ class UI {
      * Create a feedback button for feature requests and bug reports
      */
     createFeedbackButton() {
-        const buttonContainer = document.getElementById('button-container');
-        
-        const feedbackButton = document.createElement('div');
-        feedbackButton.id = 'feedback-button';
-        feedbackButton.style.width = '40px';
-        feedbackButton.style.height = '40px';
-        feedbackButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        feedbackButton.style.color = 'white';
-        feedbackButton.style.display = 'flex';
-        feedbackButton.style.justifyContent = 'center';
-        feedbackButton.style.alignItems = 'center';
-        feedbackButton.style.borderRadius = '8px';
-        feedbackButton.style.cursor = 'pointer';
-        feedbackButton.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.5)';
-        feedbackButton.style.transition = 'all 0.2s';
-        // Add hover and active states to make it more clickable
-        feedbackButton.style.transform = 'scale(1)';
-        feedbackButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
-        feedbackButton.title = "Submit Feedback on X";
-        
-        // Enhance hover effect to make it more visible
-        feedbackButton.addEventListener('mouseover', () => {
-            feedbackButton.style.backgroundColor = 'rgba(30, 90, 150, 0.8)';
-            feedbackButton.style.transform = 'scale(1.05)';
-        });
-        feedbackButton.addEventListener('mouseout', () => {
-            feedbackButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            feedbackButton.style.transform = 'scale(1)';
-        });
-        
-        // Add mousedown/up effects to improve click feel
-        feedbackButton.addEventListener('mousedown', () => {
-            feedbackButton.style.transform = 'scale(0.95)';
-        });
-        
-        feedbackButton.addEventListener('mouseup', () => {
-            feedbackButton.style.transform = 'scale(1.05)';
-        });
-        
-        // Simplified click handler - Directly open Twitter with pre-formatted tweet
-        feedbackButton.addEventListener('click', () => {
-            // Pre-formatted tweet with @nicolamanzini tag
-            const tweetText = "Feedback for Sail @nicolamanzini: ";
-            const tweetUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
-            
-            // Open Twitter in a new window
-            window.open(tweetUrl, '_blank');
-        });
-        
-        buttonContainer.appendChild(feedbackButton);
+        // This method is now empty as the feedback button is removed
     }
     
     /**
@@ -867,7 +836,7 @@ class UI {
      * This method is now deprecated as we're directly opening Twitter
      */
     showFeedbackModal() {
-        // Method now deprecated - we're directly opening Twitter
+        // Method no longer needed - removed
     }
 
     /**
@@ -983,46 +952,95 @@ class UI {
 
     /**
      * Creates an overlay with the author's name and X.com link
+     * @param {string} authorName - The author's name/handle to display (default: @nicolamanzini)
      */
-    createAuthorOverlay() {
+    createAuthorOverlay(authorName = '@nicolamanzini') {
         const authorOverlay = document.createElement('div');
         authorOverlay.id = 'author-overlay';
         authorOverlay.style.position = 'absolute';
         authorOverlay.style.top = '10px';
         authorOverlay.style.left = '50%';
         authorOverlay.style.transform = 'translateX(-50%)';
-        authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         authorOverlay.style.color = 'white';
         authorOverlay.style.padding = '8px 12px';
-        authorOverlay.style.borderRadius = '4px';
+        authorOverlay.style.borderRadius = '8px';
         authorOverlay.style.fontFamily = 'Arial, sans-serif';
         authorOverlay.style.fontSize = '14px';
         authorOverlay.style.zIndex = '1000';
         authorOverlay.style.backdropFilter = 'blur(4px)';
         authorOverlay.style.WebkitBackdropFilter = 'blur(4px)';
-        authorOverlay.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+        authorOverlay.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        authorOverlay.style.display = 'flex';
+        authorOverlay.style.alignItems = 'center';
+        authorOverlay.style.gap = '8px';
+        authorOverlay.style.transition = 'all 0.2s ease';
         
-        const authorLink = document.createElement('a');
-        authorLink.href = 'https://x.com/nicolamanzini';
-        authorLink.target = '_blank';
-        authorLink.rel = 'noopener noreferrer';
-        authorLink.textContent = '@nicolamanzini';
-        authorLink.style.color = '#1DA1F2'; // X.com blue color
-        authorLink.style.textDecoration = 'none';
-        authorLink.style.fontWeight = 'bold';
+        // Create mail icon - using white color like other UI elements
+        const mailIcon = document.createElement('div');
+        mailIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+        </svg>`;
+        mailIcon.style.lineHeight = '0';
+        mailIcon.style.opacity = '0.9';
         
-        authorOverlay.appendChild(authorLink);
+        // Generate Twitter/X URL from the author name
+        const authorHandle = authorName.startsWith('@') ? authorName.substring(1) : authorName;
+        const authorUrl = `https://x.com/${authorHandle}`;
+        
+        // Wrap the entire overlay content in an anchor tag
+        const authorAnchor = document.createElement('a');
+        authorAnchor.href = authorUrl;
+        authorAnchor.target = '_blank';
+        authorAnchor.rel = 'noopener noreferrer';
+        authorAnchor.style.textDecoration = 'none';
+        authorAnchor.style.color = 'inherit';
+        authorAnchor.style.display = 'flex';
+        authorAnchor.style.alignItems = 'center';
+        authorAnchor.style.gap = '8px';
+        authorAnchor.style.width = '100%';
+        authorAnchor.style.cursor = 'pointer';
+        
+        const authorText = document.createElement('span');
+        authorText.textContent = authorName;
+        authorText.style.color = 'white';
+        authorText.style.fontWeight = 'bold';
+        authorText.style.opacity = '0.9';
+        
+        // Use media query to adapt text size if name is long
+        const style = document.createElement('style');
+        style.textContent = `
+            @media (max-width: 500px) {
+                #author-overlay span {
+                    font-size: 12px;
+                }
+            }
+            @media (max-width: 400px) {
+                #author-overlay span {
+                    font-size: 10px;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Append elements in the right hierarchy
+        authorAnchor.appendChild(mailIcon);
+        authorAnchor.appendChild(authorText);
+        authorOverlay.appendChild(authorAnchor);
         document.body.appendChild(authorOverlay);
         
         // Add hover effect
-        authorLink.addEventListener('mouseover', () => {
-            authorLink.style.textDecoration = 'underline';
-            authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        authorOverlay.addEventListener('mouseover', () => {
+            authorText.style.textDecoration = 'underline';
+            authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            authorOverlay.style.transform = 'translateX(-50%) scale(1.05)';
         });
         
-        authorLink.addEventListener('mouseout', () => {
-            authorLink.style.textDecoration = 'none';
-            authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        authorOverlay.addEventListener('mouseout', () => {
+            authorText.style.textDecoration = 'none';
+            authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            authorOverlay.style.transform = 'translateX(-50%) scale(1)';
         });
     }
 }
