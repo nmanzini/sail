@@ -28,8 +28,7 @@ class Sail {
         // Camera modes
         this.cameraMode = 'orbit'; // Changed from 'boat' to 'orbit' as default
         this.cameraOffset = {
-            boat: new THREE.Vector3(0, 4, 0
-            ) // Position closer to the boat (reduced height and distance)
+            boat: new THREE.Vector3(0, 2, 0) // Lower height for more immersive in-boat view
         };
         
         // First-person boat view controls
@@ -269,8 +268,8 @@ class Sail {
             this.boatCameraRotation = 0;
             this.boatCameraPitch = 0;
             
-            // Widen FOV when switching to boat mode for more immersive view
-            this.camera.fov = 80;
+            // Wider FOV when switching to boat mode for more immersive view
+            this.camera.fov = 90;
             this.camera.updateProjectionMatrix();
         } else {
             this.cameraMode = 'orbit';
@@ -314,40 +313,69 @@ class Sail {
         const boatPos = this.boat.getPosition();
         const boatRotation = this.boat.getRotation();
         
-        // Calculate position - place camera behind the stern
-        // The offset values need to be adjusted based on the boat's size
-        const hullLength = 15; // Use the same value from boatOptions
-        const offset = new THREE.Vector3(0, this.cameraOffset.boat.y, -hullLength / 2 - this.cameraOffset.boat.z);
+        // Define a pivot point on the boat above the rudder (at the stern/back of boat)
+        const hullLength = 15; // Same as in boatOptions
+        const pivotHeight = 4; // Height above deck for helmsman view - increased from 3 to 5
+        const pivotForward = -hullLength/2 + 1; // At the stern where the rudder is located, +1 for slight offset from edge
         
-        // Apply boat rotation
-        offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), boatRotation);
+        // Calculate base pivot position on the boat
+        const pivotPos = new THREE.Vector3(0, pivotHeight, pivotForward);
         
-        // Set camera position
-        this.camera.position.copy(boatPos).add(offset);
+        // Apply boat rotation to pivot position
+        pivotPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), boatRotation);
         
-        // Calculate forward direction based on boat rotation plus camera rotation
-        // First create the horizontal rotation (yaw)
+        // Add to boat position to get world pivot position
+        pivotPos.add(boatPos);
+        
+        // Calculate camera orbit distance (closer for immersion)
+        const orbitDistance = 0.3; // Very close for immersive feel, reduced from 0.5
+        
+        // Calculate horizontal rotation (yaw)
         const totalYaw = boatRotation + this.boatCameraRotation;
-        const forwardDir = new THREE.Vector3(
-            Math.sin(totalYaw), 
-            0, 
-            Math.cos(totalYaw)
+        
+        // Calculate camera position based on orbit around pivot
+        // We'll use spherical coordinates to orbit around the pivot point
+        const cameraPos = new THREE.Vector3(
+            Math.sin(totalYaw) * orbitDistance * Math.cos(this.boatCameraPitch),
+            orbitDistance * Math.sin(this.boatCameraPitch),
+            Math.cos(totalYaw) * orbitDistance * Math.cos(this.boatCameraPitch)
         );
         
-        // Then apply the vertical rotation (pitch)
-        // Create an up vector
-        const upVector = new THREE.Vector3(0, 1, 0);
+        // Add the camera position to the pivot point
+        cameraPos.add(pivotPos);
         
-        // Create a right vector perpendicular to forward and up
-        const rightVector = new THREE.Vector3().crossVectors(forwardDir, upVector).normalize();
+        // Set camera position
+        this.camera.position.copy(cameraPos);
         
-        // Apply pitch rotation around the right vector
-        forwardDir.applyAxisAngle(rightVector, -this.boatCameraPitch);
+        // Create forward vector for camera to look at - looking forward over the boat
+        // Adjust look target to be in front of the boat so we're looking forward
+        const lookForwardDist = hullLength + 5; // Look ahead past the bow
+        const lookAtPos = new THREE.Vector3(
+            Math.sin(boatRotation) * lookForwardDist,
+            pivotHeight * 0.8, // Slightly below eye level
+            Math.cos(boatRotation) * lookForwardDist
+        ).add(boatPos);
         
-        // Set a point to look at based on direction
-        const lookAtPos = this.camera.position.clone().add(forwardDir.multiplyScalar(20));
+        // Apply user's camera rotation to look direction
+        if (this.boatCameraRotation !== 0 || this.boatCameraPitch !== 0) {
+            // If user is looking around, look relative to the pivot instead
+            const lookDir = new THREE.Vector3(
+                Math.sin(totalYaw) * Math.cos(this.boatCameraPitch),
+                Math.sin(this.boatCameraPitch),
+                Math.cos(totalYaw) * Math.cos(this.boatCameraPitch)
+            ).multiplyScalar(20); // Look 20 units in this direction
+            
+            lookAtPos.copy(pivotPos).add(lookDir);
+        }
         
+        // Make camera look at point
         this.camera.lookAt(lookAtPos);
+        
+        // Increase FOV for more immersive feel
+        if (this.camera.fov !== 90) {
+            this.camera.fov = 90;
+            this.camera.updateProjectionMatrix();
+        }
     }
     
     /**
