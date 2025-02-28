@@ -764,7 +764,7 @@ class UI {
                 <h4 style="margin: 0 0 10px 0; color: #3399ff;">Keyboard Controls</h4>
                 <p style="margin: 5px 0;"><span style="color: #a5d8ff;">A ←  /  D →</span> Turn rudder left/right</p>
                 <p style="margin: 5px 0;"><span style="color: #a5d8ff;">W ↑  /  S ↓</span> Increase/decrease sail angle</p>
-                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">C:</span> Toggle camera view</p>
+                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">C:</span> Toggle between orbit and first-person camera</p>
             </div>
             <div style="margin-bottom: 15px;">
                 <h4 style="margin: 0 0 10px 0; color: #3399ff;">Mouse Controls</h4>
@@ -934,13 +934,13 @@ class UI {
     }
 
     /**
-     * Toggle camera mode between 'orbit' and 'boat'
+     * Toggle camera mode between 'orbit' and 'firstPerson'
      */
     toggleCameraMode() {
         if (window.sail && typeof window.sail.toggleCameraMode === 'function') {
             window.sail.toggleCameraMode();
             // Update the button appearance to indicate current mode
-            if (window.sail.cameraMode === 'boat') {
+            if (window.sail.cameraMode === 'firstPerson') {
                 this.elements.cameraButton.querySelector('svg').style.fill = '#3399ff';
             } else {
                 this.elements.cameraButton.querySelector('svg').style.fill = 'white';

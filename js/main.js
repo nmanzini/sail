@@ -28,17 +28,27 @@ class Sail {
         this.lastTime = 0;
         
         // Camera modes
-        this.cameraMode = 'orbit'; // Changed from 'boat' to 'orbit' as default
-        this.cameraOffset = {
-            boat: new THREE.Vector3(0, 2, 0) // Lower height for more immersive in-boat view
-        };
+        this.cameraMode = 'orbit'; // 'orbit' or 'firstPerson'
         
-        // First-person boat view controls
-        this.boatCameraRotation = 0; // Horizontal rotation offset in radians
-        this.boatCameraPitch = 0;    // Vertical rotation offset in radians
-        this.isMouseDown = false;
-        this.lastMouseX = 0;
-        this.lastMouseY = 0;
+        // Camera settings for different modes
+        this.cameraModes = {
+            orbit: {
+                fov: 60,
+                minDistance: 25,
+                maxDistance: 80,
+                maxPolarAngle: Math.PI / 2 - 0.1,
+                damping: true,
+                dampingFactor: 0.05
+            },
+            firstPerson: {
+                fov: 90,
+                minDistance: 1,
+                maxDistance: 3,
+                maxPolarAngle: Math.PI / 2 - 0.1,
+                damping: true,
+                dampingFactor: 0.05
+            }
+        };
         
         // Initialize the application
         this.init();
@@ -53,7 +63,12 @@ class Sail {
         this.scene.background = new THREE.Color(0x87CEEB); // Sky blue background
         
         // Create camera with a default FOV for orbit mode
-        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+        this.camera = new THREE.PerspectiveCamera(
+            this.cameraModes.orbit.fov, 
+            window.innerWidth / window.innerHeight, 
+            0.1, 
+            2000
+        );
         this.camera.position.set(0, 40, 70); // Higher and further back for better view
         this.camera.lookAt(0, 0, 0);
         
@@ -65,15 +80,8 @@ class Sail {
         
         // Add orbit controls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true; // Add smooth damping effect
-        this.controls.dampingFactor = 0.05;
-        this.controls.minDistance = 25; // Increased minimum zoom distance
-        this.controls.maxDistance = 80; // Reduced maximum zoom distance
-        this.controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below the ground plane
+        this.applyOrbitSettings(this.cameraModes.orbit);
         this.controls.target.set(0, 0, 0); // Set target to boat position
-        
-        // Orbit controls are enabled by default since we're starting in orbit mode
-        this.controls.enabled = true;
         
         // Create world and pass camera reference for wind particles
         this.world = new World(this.scene, this.camera);
@@ -116,11 +124,10 @@ class Sail {
         // Add mobile controls if needed
         this.mobileControls = new MobileControls(this);
         
-        // Set up camera controls and handle device-specific behaviors
+        // Set up camera controls
         this.setupCameraControls();
         
         // Position camera to start with a good view of the boat
-        // If in orbit mode, position the camera with a better viewing angle
         if (this.cameraMode === 'orbit') {
             // Use a wider angle and closer position for a more engaging view
             const startingDistance = 50;
@@ -145,6 +152,22 @@ class Sail {
         // Start animation loop
         this.lastTime = this.clock.getElapsedTime();
         this.animate();
+    }
+    
+    /**
+     * Apply orbit control settings based on the camera mode
+     * @param {Object} settings - The camera settings to apply
+     */
+    applyOrbitSettings(settings) {
+        this.controls.enableDamping = settings.damping;
+        this.controls.dampingFactor = settings.dampingFactor;
+        this.controls.minDistance = settings.minDistance;
+        this.controls.maxDistance = settings.maxDistance;
+        this.controls.maxPolarAngle = settings.maxPolarAngle;
+        
+        // Update camera FOV
+        this.camera.fov = settings.fov;
+        this.camera.updateProjectionMatrix();
     }
     
     /**
@@ -222,27 +245,35 @@ class Sail {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        // Update orbit controls if in orbit mode
-        if (this.cameraMode === 'orbit') {
-            // Smoothly update camera target to follow boat
-            const boatPosition = this.boat.getPosition();
+        // Get boat position for camera target
+        const boatPosition = this.boat.getPosition();
+        
+        // Update camera target based on camera mode
+        if (this.cameraMode === 'firstPerson') {
+            // For first-person mode, calculate a position above the boat
+            const boatRotation = this.boat.getRotation();
+            const hullLength = 15; // Same as in boatOptions
+            const pivotHeight = 4; // Height above deck for helmsman view
+            const pivotForward = -hullLength/4; // Moved forward from the stern (was -hullLength/2 + 1)
+            
+            // Calculate position in world space
+            const rudderPos = new THREE.Vector3(0, pivotHeight, pivotForward);
+            rudderPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), boatRotation);
+            rudderPos.add(boatPosition);
+            
+            // Smoothly move the controls target to the position
             const currentTarget = this.controls.target.clone();
-            
-            // Calculate a smoothing factor based on deltaTime
+            const smoothingFactor = Math.min(1.0, deltaTime * 5.0); // Faster smoothing for first-person
+            this.controls.target.lerpVectors(currentTarget, rudderPos, smoothingFactor);
+        } else {
+            // For orbit mode, target the boat with smooth transition
+            const currentTarget = this.controls.target.clone();
             const smoothingFactor = Math.min(1.0, deltaTime * 3.0);
-            
-            // Lerp (linear interpolation) between current target and boat position
-            this.controls.target.lerpVectors(
-                currentTarget,
-                boatPosition,
-                smoothingFactor
-            );
-            
-            this.controls.update();
-        } else if (this.cameraMode === 'boat') {
-            // Update in-boat camera position
-            this.updateBoatCamera();
+            this.controls.target.lerpVectors(currentTarget, boatPosition, smoothingFactor);
         }
+        
+        // Update orbit controls
+        this.controls.update();
         
         // Update world
         this.world.update(deltaTime);
@@ -284,44 +315,6 @@ class Sail {
                 this.toggleCameraMode();
             }
         });
-        
-        // Handle mouse controls for first-person boat camera
-        document.addEventListener('mousedown', (event) => {
-            if (this.cameraMode === 'boat' && event.button === 0) {
-                this.isMouseDown = true;
-                this.lastMouseX = event.clientX;
-                this.lastMouseY = event.clientY;
-            }
-        });
-        
-        document.addEventListener('mouseup', () => {
-            this.isMouseDown = false;
-        });
-        
-        document.addEventListener('mousemove', (event) => {
-            if (this.cameraMode === 'boat' && this.isMouseDown) {
-                // Calculate horizontal rotation based on mouse movement
-                const horizontalSensitivity = 0.005;
-                const verticalSensitivity = 0.005;
-                
-                const deltaX = event.clientX - this.lastMouseX;
-                const deltaY = event.clientY - this.lastMouseY;
-                
-                this.boatCameraRotation += deltaX * horizontalSensitivity;
-                
-                // Update pitch (vertical rotation) and clamp to prevent camera flipping
-                this.boatCameraPitch += deltaY * verticalSensitivity;
-                const maxPitch = Math.PI * 0.45; // About 80 degrees up/down
-                this.boatCameraPitch = Math.max(-maxPitch, Math.min(maxPitch, this.boatCameraPitch));
-                
-                // Normalize rotation to 0-2π range
-                this.boatCameraRotation = this.boatCameraRotation % (Math.PI * 2);
-                if (this.boatCameraRotation < 0) this.boatCameraRotation += Math.PI * 2;
-                
-                this.lastMouseX = event.clientX;
-                this.lastMouseY = event.clientY;
-            }
-        });
     }
     
     /**
@@ -329,24 +322,44 @@ class Sail {
      */
     toggleCameraMode() {
         if (this.cameraMode === 'orbit') {
-            this.cameraMode = 'boat';
-            // Disable orbit controls when in boat mode
-            this.controls.enabled = false;
-            // Reset boat camera rotation
-            this.boatCameraRotation = 0;
-            this.boatCameraPitch = 0;
+            // Switch to first-person mode
+            this.cameraMode = 'firstPerson';
             
-            // Wider FOV when switching to boat mode for more immersive view
-            this.camera.fov = 90;
-            this.camera.updateProjectionMatrix();
+            // Apply first-person camera settings
+            this.applyOrbitSettings(this.cameraModes.firstPerson);
+            
+            // Prepare a spot where we want the first-person camera to be
+            const boatPosition = this.boat.getPosition();
+            const boatRotation = this.boat.getRotation();
+            const hullLength = 15;
+            const pivotHeight = 4;
+            const pivotForward = -hullLength/4; // Moved forward from the stern (was -hullLength/2 + 1)
+            
+            // Calculate position in world space
+            const rudderPos = new THREE.Vector3(0, pivotHeight, pivotForward);
+            rudderPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), boatRotation);
+            rudderPos.add(boatPosition);
+            
+            // Set the controls target to the position
+            this.controls.target.copy(rudderPos);
+            
+            // Position the camera at a good spot for first-person view
+            // Calculate a position slightly behind and above
+            const camOffset = new THREE.Vector3(0, 0.5, -1.5);
+            camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), boatRotation);
+            const camPos = rudderPos.clone().add(camOffset);
+            
+            this.camera.position.copy(camPos);
         } else {
+            // Switch back to orbit mode
             this.cameraMode = 'orbit';
-            // Re-enable orbit controls
-            this.controls.enabled = true;
             
-            // Return to default FOV for orbit mode
-            this.camera.fov = 60;
-            this.camera.updateProjectionMatrix();
+            // Apply orbit camera settings
+            this.applyOrbitSettings(this.cameraModes.orbit);
+            
+            // Adjust back to a good orbit position if needed
+            const boatPosition = this.boat.getPosition();
+            this.controls.target.copy(boatPosition);
         }
         
         // Update the controls panel to show the current camera mode
@@ -362,87 +375,14 @@ class Sail {
             // Find if there's already a camera mode line and update it
             const cameraModeInfo = document.getElementById('camera-mode-info');
             if (cameraModeInfo) {
-                cameraModeInfo.textContent = `Camera Mode: ${this.cameraMode === 'orbit' ? 'Orbit' : 'In-Boat'}`;
+                cameraModeInfo.textContent = `Camera Mode: ${this.cameraMode === 'orbit' ? 'Orbit' : 'First-Person'}`;
             } else {
                 // Create new line if it doesn't exist
                 const newInfo = document.createElement('p');
                 newInfo.id = 'camera-mode-info';
-                newInfo.textContent = `Camera Mode: ${this.cameraMode === 'orbit' ? 'Orbit' : 'In-Boat'}`;
+                newInfo.textContent = `Camera Mode: ${this.cameraMode === 'orbit' ? 'Orbit' : 'First-Person'}`;
                 controlsInfo.appendChild(newInfo);
             }
-        }
-    }
-    
-    /**
-     * Updates camera position and orientation when in boat mode
-     */
-    updateBoatCamera() {
-        // Get boat position and rotation
-        const boatPos = this.boat.getPosition();
-        const boatRotation = this.boat.getRotation();
-        
-        // Define a pivot point on the boat above the rudder (at the stern/back of boat)
-        const hullLength = 15; // Same as in boatOptions
-        const pivotHeight = 4; // Height above deck for helmsman view - increased from 3 to 5
-        const pivotForward = -hullLength/2 + 1; // At the stern where the rudder is located, +1 for slight offset from edge
-        
-        // Calculate base pivot position on the boat
-        const pivotPos = new THREE.Vector3(0, pivotHeight, pivotForward);
-        
-        // Apply boat rotation to pivot position
-        pivotPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), boatRotation);
-        
-        // Add to boat position to get world pivot position
-        pivotPos.add(boatPos);
-        
-        // Calculate camera orbit distance (closer for immersion)
-        const orbitDistance = 0.3; // Very close for immersive feel, reduced from 0.5
-        
-        // Calculate horizontal rotation (yaw)
-        const totalYaw = boatRotation + this.boatCameraRotation;
-        
-        // Calculate camera position based on orbit around pivot
-        // We'll use spherical coordinates to orbit around the pivot point
-        const cameraPos = new THREE.Vector3(
-            Math.sin(totalYaw) * orbitDistance * Math.cos(this.boatCameraPitch),
-            orbitDistance * Math.sin(this.boatCameraPitch),
-            Math.cos(totalYaw) * orbitDistance * Math.cos(this.boatCameraPitch)
-        );
-        
-        // Add the camera position to the pivot point
-        cameraPos.add(pivotPos);
-        
-        // Set camera position
-        this.camera.position.copy(cameraPos);
-        
-        // Create forward vector for camera to look at - looking forward over the boat
-        // Adjust look target to be in front of the boat so we're looking forward
-        const lookForwardDist = hullLength + 5; // Look ahead past the bow
-        const lookAtPos = new THREE.Vector3(
-            Math.sin(boatRotation) * lookForwardDist,
-            pivotHeight * 0.8, // Slightly below eye level
-            Math.cos(boatRotation) * lookForwardDist
-        ).add(boatPos);
-        
-        // Apply user's camera rotation to look direction
-        if (this.boatCameraRotation !== 0 || this.boatCameraPitch !== 0) {
-            // If user is looking around, look relative to the pivot instead
-            const lookDir = new THREE.Vector3(
-                Math.sin(totalYaw) * Math.cos(this.boatCameraPitch),
-                Math.sin(this.boatCameraPitch),
-                Math.cos(totalYaw) * Math.cos(this.boatCameraPitch)
-            ).multiplyScalar(20); // Look 20 units in this direction
-            
-            lookAtPos.copy(pivotPos).add(lookDir);
-        }
-        
-        // Make camera look at point
-        this.camera.lookAt(lookAtPos);
-        
-        // Increase FOV for more immersive feel
-        if (this.camera.fov !== 90) {
-            this.camera.fov = 90;
-            this.camera.updateProjectionMatrix();
         }
     }
 }
