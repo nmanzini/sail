@@ -45,6 +45,10 @@ class UI {
                     transform: scale(0.8);
                     transform-origin: bottom right;
                 }
+                #feedback-button {
+                    transform: scale(0.8);
+                    transform-origin: bottom right;
+                }
             }
             @media (max-width: 480px) {
                 #speedometer {
@@ -56,6 +60,10 @@ class UI {
                     transform-origin: top left;
                 }
                 #camera-button {
+                    transform: scale(0.7);
+                    transform-origin: bottom right;
+                }
+                #feedback-button {
                     transform: scale(0.7);
                     transform-origin: bottom right;
                 }
@@ -73,6 +81,7 @@ class UI {
         this.createControls();
         this.createCameraButton();
         this.createControlsPanel();
+        this.createFeedbackButton();
 
         // Store references to all elements we'll need to update
         this.cacheElementReferences();
@@ -132,10 +141,10 @@ class UI {
         
         // Add click event to toggle camera mode
         cameraButton.addEventListener('click', () => {
-            if (window.sailingSimulator && typeof window.sailingSimulator.toggleCameraMode === 'function') {
-                window.sailingSimulator.toggleCameraMode();
+            if (window.sail && typeof window.sail.toggleCameraMode === 'function') {
+                window.sail.toggleCameraMode();
                 // Update the button appearance to indicate current mode
-                if (window.sailingSimulator.cameraMode === 'boat') {
+                if (window.sail.cameraMode === 'boat') {
                     cameraButton.querySelector('svg').style.fill = '#3399ff';
                 } else {
                     cameraButton.querySelector('svg').style.fill = 'white';
@@ -144,6 +153,11 @@ class UI {
                 console.error('Simulator or toggleCameraMode function not available');
             }
         });
+        
+        // Set initial button color based on camera mode
+        if (window.sail && window.sail.cameraMode === 'boat') {
+            cameraButton.querySelector('svg').style.fill = '#3399ff';
+        }
         
         document.body.appendChild(cameraButton);
         this.elements.cameraButton = cameraButton;
@@ -784,6 +798,72 @@ class UI {
         if (speedValue) {
             speedValue.textContent = `${this.boat.getSpeedInKnots().toFixed(1)} knots`;
         }
+    }
+
+    /**
+     * Create a feedback button for feature requests and bug reports
+     */
+    createFeedbackButton() {
+        const feedbackButton = document.createElement('div');
+        feedbackButton.id = 'feedback-button';
+        feedbackButton.style.position = 'absolute';
+        feedbackButton.style.bottom = '230px'; // Increased from 130px to position above camera button (180px)
+        feedbackButton.style.right = '10px';
+        feedbackButton.style.width = '40px';
+        feedbackButton.style.height = '40px';
+        feedbackButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        feedbackButton.style.color = 'white';
+        feedbackButton.style.display = 'flex';
+        feedbackButton.style.justifyContent = 'center';
+        feedbackButton.style.alignItems = 'center';
+        feedbackButton.style.borderRadius = '8px';
+        feedbackButton.style.cursor = 'pointer';
+        feedbackButton.style.zIndex = '999';
+        feedbackButton.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.5)';
+        feedbackButton.style.transition = 'all 0.2s';
+        // Add hover and active states to make it more clickable
+        feedbackButton.style.transform = 'scale(1)';
+        feedbackButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
+        feedbackButton.title = "Submit Feedback on X";
+        
+        // Enhance hover effect to make it more visible
+        feedbackButton.addEventListener('mouseover', () => {
+            feedbackButton.style.backgroundColor = 'rgba(30, 90, 150, 0.8)';
+            feedbackButton.style.transform = 'scale(1.05)';
+        });
+        feedbackButton.addEventListener('mouseout', () => {
+            feedbackButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            feedbackButton.style.transform = 'scale(1)';
+        });
+        
+        // Add mousedown/up effects to improve click feel
+        feedbackButton.addEventListener('mousedown', () => {
+            feedbackButton.style.transform = 'scale(0.95)';
+        });
+        
+        feedbackButton.addEventListener('mouseup', () => {
+            feedbackButton.style.transform = 'scale(1.05)';
+        });
+        
+        // Simplified click handler - Directly open Twitter with pre-formatted tweet
+        feedbackButton.addEventListener('click', () => {
+            // Pre-formatted tweet with @nicolamanzini tag
+            const tweetText = "Feedback for Sail @nicolamanzini: ";
+            const tweetUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+            
+            // Open Twitter in a new window
+            window.open(tweetUrl, '_blank');
+        });
+        
+        document.body.appendChild(feedbackButton);
+    }
+    
+    /**
+     * Show feedback modal for user to input their feature request or bug report
+     * This method is now deprecated as we're directly opening Twitter
+     */
+    showFeedbackModal() {
+        // Method now deprecated - we're directly opening Twitter
     }
 }
 

@@ -1,4 +1,4 @@
-# Simple Sailing Simulator
+# Sail
 
 A browser-based sailing simulator built with Three.js that demonstrates basic sailing physics and controls.
 

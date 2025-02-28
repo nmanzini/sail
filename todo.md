@@ -1,7 +1,8 @@
 # TODO
 
 ## usage
-- add way to share a screenshot on x.com and tag me @nicolamanzini
+- ✅ add way to share a screenshot on x.com and tag me @nicolamanzini
+- ✅ add feature request/bug report button for sharing feedback on X with @nicolamanzini tag
 
 ## UI
 - more realisti sea. maybe an animation

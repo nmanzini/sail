@@ -8,7 +8,7 @@ import MobileControls from './components/MobileControls.js';
 /**
  * Main application class for the sailing simulator
  */
-class SailingSimulator {
+class Sail {
     constructor() {
         // Core Three.js components
         this.scene = null;
@@ -26,7 +26,7 @@ class SailingSimulator {
         this.lastTime = 0;
         
         // Camera modes
-        this.cameraMode = 'orbit'; // 'orbit' or 'boat'
+        this.cameraMode = 'boat'; // 'orbit' or 'boat'
         this.cameraOffset = {
             boat: new THREE.Vector3(0, 4, 0
             ) // Position closer to the boat (reduced height and distance)
@@ -70,6 +70,11 @@ class SailingSimulator {
         this.controls.maxDistance = 80; // Reduced maximum zoom distance
         this.controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below the ground plane
         this.controls.target.set(0, 0, 0); // Set target to boat position
+        
+        // If starting in boat mode, disable orbit controls
+        if (this.cameraMode === 'boat') {
+            this.controls.enabled = false;
+        }
         
         // Create world and pass camera reference for wind particles
         this.world = new World(this.scene, this.camera);
@@ -320,17 +325,15 @@ class SailingSimulator {
 // Create and start the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Create a global reference to the simulator for UI elements to access
-    window.sailingSimulator = new SailingSimulator();
+    window.sail = new Sail();
     console.log('Simulator initialized and attached to window object');
     
-    // Add debug method to verify simulator is accessible
-    window.testCameraToggle = function() {
-        if (window.sailingSimulator && typeof window.sailingSimulator.toggleCameraMode === 'function') {
-            window.sailingSimulator.toggleCameraMode();
-            console.log('Camera toggled to: ' + window.sailingSimulator.cameraMode);
-            return true;
+    // Log the initial camera mode
+    try {
+        if (window.sail) {
+            console.log('Initial camera mode: ' + window.sail.cameraMode);
         }
-        console.error('Simulator or toggleCameraMode function not available');
-        return false;
-    };
+    } catch (e) {
+        console.error('Simulator not available');
+    }
 }); 

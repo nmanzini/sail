@@ -1,5 +1,5 @@
 /**
- * Touch controls for the sailing simulator using nipple.js
+ * Touch controls for Sail using nipple.js
  * (No longer mobile-specific)
  */
 class MobileControls {
