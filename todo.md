@@ -1,8 +1,7 @@
 # TODO
 
 ## usage
-- analytics
-- add way to sahre a screenshot on x.com and tag me @nicolamanzini
+- add way to share a screenshot on x.com and tag me @nicolamanzini
 
 ## UI
 - more realisti sea. maybe an animation
