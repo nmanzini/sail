@@ -86,8 +86,8 @@ class AudioManager {
                         
                         this.initialized = true;
                         
-                        // Use slightly faster fade-in (7 seconds instead of 10)
-                        this.fadeInMasterVolume(0.5, 7); // Fade to 50% volume over 7 seconds
+                        // Use slightly faster fade-in (2 seconds instead of 7)
+                        this.fadeInMasterVolume(0.5, 2); // Fade to 50% volume over 2 seconds
                         
                         resolve();
                     })
@@ -161,7 +161,7 @@ class AudioManager {
             // Gradually increase to the calculated volume
             this.windSound.gainNode.gain.linearRampToValueAtTime(
                 volume, 
-                this.audioContext.currentTime + 10 // 10 second fade-in
+                this.audioContext.currentTime + 2 // 2 second fade-in (reduced from 10)
             );
         } else {
             // Update volume with faster smoothing for already playing sound
@@ -186,7 +186,7 @@ class AudioManager {
             // Gradually increase to the target volume
             this.seaSound.gainNode.gain.linearRampToValueAtTime(
                 volume, 
-                this.audioContext.currentTime + 10 // 10 second fade-in
+                this.audioContext.currentTime + 2 // 2 second fade-in (reduced from 10)
             );
         } else {
             // Update volume with smoothing for already playing sound
@@ -292,7 +292,7 @@ class AudioManager {
                 this.windSound.gainNode.gain.value = 0;
                 this.windSound.gainNode.gain.linearRampToValueAtTime(
                     volume, 
-                    this.audioContext.currentTime + 5 // 5 second fade-in (faster than initial load)
+                    this.audioContext.currentTime + 2 // 2 second fade-in (reduced from 5)
                 );
             }
         } else {
@@ -318,7 +318,7 @@ class AudioManager {
                 this.seaSound.gainNode.gain.value = 0;
                 this.seaSound.gainNode.gain.linearRampToValueAtTime(
                     0.3, // Default volume
-                    this.audioContext.currentTime + 5 // 5 second fade-in (faster than initial load)
+                    this.audioContext.currentTime + 2 // 2 second fade-in (reduced from 5)
                 );
             }
         } else {
