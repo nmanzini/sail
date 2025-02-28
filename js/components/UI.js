@@ -80,9 +80,16 @@ class UI {
         // Core UI elements (always visible)
         this.createSpeedometer();
         this.createControls();
+        
+        // Create a container for buttons
+        this.createButtonContainer();
+        
+        // Add buttons to the container
         this.createCameraButton();
-        this.createControlsPanel();
+        this.createSoundButton();
         this.createFeedbackButton();
+        
+        this.createControlsPanel();
 
         // Store references to all elements we'll need to update
         this.cacheElementReferences();
@@ -95,14 +102,32 @@ class UI {
     }
     
     /**
+     * Create a container for UI buttons under the speedometer
+     */
+    createButtonContainer() {
+        // Create a container for all buttons
+        const buttonContainer = document.createElement('div');
+        buttonContainer.id = 'button-container';
+        buttonContainer.style.position = 'absolute';
+        buttonContainer.style.top = '50%'; // Position in the middle of the screen vertically
+        buttonContainer.style.transform = 'translateY(-50%)'; // Center it properly
+        buttonContainer.style.right = '10px';
+        buttonContainer.style.display = 'flex';
+        buttonContainer.style.flexDirection = 'column';
+        buttonContainer.style.gap = '10px';
+        buttonContainer.style.zIndex = '1000';
+        
+        document.body.appendChild(buttonContainer);
+    }
+    
+    /**
      * Create a camera toggle button
      */
     createCameraButton() {
+        const buttonContainer = document.getElementById('button-container');
+        
         const cameraButton = document.createElement('div');
         cameraButton.id = 'camera-button';
-        cameraButton.style.position = 'absolute';
-        cameraButton.style.bottom = '180px';
-        cameraButton.style.right = '10px';
         cameraButton.style.width = '40px';
         cameraButton.style.height = '40px';
         cameraButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
@@ -111,7 +136,6 @@ class UI {
         cameraButton.style.alignItems = 'center';
         cameraButton.style.justifyContent = 'center';
         cameraButton.style.cursor = 'pointer';
-        cameraButton.style.zIndex = '1000';
         cameraButton.style.borderRadius = '8px';
         cameraButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
         cameraButton.style.transition = 'all 0.2s ease';
@@ -131,57 +155,34 @@ class UI {
             cameraButton.style.transform = 'scale(1)';
         });
         
-        // Add click effect
-        cameraButton.addEventListener('mousedown', () => {
-            cameraButton.style.transform = 'scale(0.95)';
-        });
-        
-        cameraButton.addEventListener('mouseup', () => {
-            cameraButton.style.transform = 'scale(1)';
-        });
-        
-        // Add click event to toggle camera mode
         cameraButton.addEventListener('click', () => {
-            if (window.sail && typeof window.sail.toggleCameraMode === 'function') {
-                window.sail.toggleCameraMode();
-                // Update the button appearance to indicate current mode
-                if (window.sail.cameraMode === 'boat') {
-                    cameraButton.querySelector('svg').style.fill = '#3399ff';
-                } else {
-                    cameraButton.querySelector('svg').style.fill = 'white';
-                }
-            } else {
-                console.error('Simulator or toggleCameraMode function not available');
-            }
+            this.toggleCameraMode();
         });
         
-        // Set initial button color based on camera mode
-        if (window.sail && window.sail.cameraMode === 'boat') {
-            cameraButton.querySelector('svg').style.fill = '#3399ff';
-        }
-        
-        document.body.appendChild(cameraButton);
+        buttonContainer.appendChild(cameraButton);
         this.elements.cameraButton = cameraButton;
     }
 
     /**
-     * Cache references to DOM elements for better performance and error prevention
+     * Cache references to UI elements for faster access during updates
      */
     cacheElementReferences() {
-        // Store references to all elements we'll need to update
         this.elements = {
+            windSpeed: document.getElementById('wind-speed'),
             windDirection: document.getElementById('wind-direction'),
-            windDirectionTop: document.getElementById('wind-direction-top'),
-            windArrow: document.getElementById('wind-arrow'),
-            boatStatus: document.getElementById('boat-status'),
+            compassDisplay: document.getElementById('compass-display'),
             compassNeedle: document.getElementById('compass-needle'),
-            windDirectionNeedle: document.getElementById('wind-direction-needle'),
-            headingValue: document.getElementById('heading-value'),
-            speedValue: document.getElementById('speed-value'),
+            boatSpeed: document.getElementById('boat-speed'),
+            boatHeading: document.getElementById('boat-heading'),
+            sailAngleDisplay: document.getElementById('sail-angle-display'),
+            rudderAngleDisplay: document.getElementById('rudder-angle-display'),
+            sailDisplay: document.getElementById('sail-display'),
             sailAngleSlider: document.getElementById('sail-angle-slider'),
             sailAngleValue: document.getElementById('sail-angle-value'),
             rudderAngleSlider: document.getElementById('rudder-angle-slider'),
             rudderAngleValue: document.getElementById('rudder-angle-value'),
+            soundButton: document.getElementById('sound-toggle-btn'),
+            cameraButton: document.getElementById('camera-button')
         };
     }
 
@@ -806,11 +807,10 @@ class UI {
      * Create a feedback button for feature requests and bug reports
      */
     createFeedbackButton() {
+        const buttonContainer = document.getElementById('button-container');
+        
         const feedbackButton = document.createElement('div');
         feedbackButton.id = 'feedback-button';
-        feedbackButton.style.position = 'absolute';
-        feedbackButton.style.bottom = '230px'; // Increased from 130px to position above camera button (180px)
-        feedbackButton.style.right = '10px';
         feedbackButton.style.width = '40px';
         feedbackButton.style.height = '40px';
         feedbackButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
@@ -820,7 +820,6 @@ class UI {
         feedbackButton.style.alignItems = 'center';
         feedbackButton.style.borderRadius = '8px';
         feedbackButton.style.cursor = 'pointer';
-        feedbackButton.style.zIndex = '999';
         feedbackButton.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.5)';
         feedbackButton.style.transition = 'all 0.2s';
         // Add hover and active states to make it more clickable
@@ -857,7 +856,7 @@ class UI {
             window.open(tweetUrl, '_blank');
         });
         
-        document.body.appendChild(feedbackButton);
+        buttonContainer.appendChild(feedbackButton);
     }
     
     /**
@@ -866,6 +865,117 @@ class UI {
      */
     showFeedbackModal() {
         // Method now deprecated - we're directly opening Twitter
+    }
+
+    /**
+     * Create sound toggle button
+     */
+    createSoundButton() {
+        const buttonContainer = document.getElementById('button-container');
+        
+        const soundButton = document.createElement('div');
+        soundButton.id = 'sound-toggle-btn';
+        soundButton.style.width = '40px';
+        soundButton.style.height = '40px';
+        soundButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        soundButton.style.color = 'white';
+        soundButton.style.display = 'flex';
+        soundButton.style.alignItems = 'center';
+        soundButton.style.justifyContent = 'center';
+        soundButton.style.cursor = 'pointer';
+        soundButton.style.borderRadius = '8px';
+        soundButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        soundButton.style.transition = 'all 0.2s ease';
+        soundButton.style.userSelect = 'none';
+        soundButton.style.webkitUserSelect = 'none';
+        soundButton.style.opacity = '0.5'; // Start with low opacity until audio is initialized
+        
+        // Use SVG icon instead of emoji
+        soundButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+        </svg>`;
+        
+        soundButton.title = 'Toggle Sound (Click anywhere first to activate audio)';
+        
+        // Add hover effect
+        soundButton.addEventListener('mouseover', () => {
+            soundButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            soundButton.style.transform = 'scale(1.05)';
+        });
+        
+        soundButton.addEventListener('mouseout', () => {
+            soundButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            soundButton.style.transform = 'scale(1)';
+        });
+        
+        // Track sound state
+        let soundEnabled = true;
+        
+        // Add event listener
+        soundButton.addEventListener('click', () => {
+            if (this.app.audio && this.app.audio.initialized) {
+                soundEnabled = !soundEnabled;
+                
+                // Toggle both sounds together
+                this.app.audio.toggleWindSound(soundEnabled);
+                this.app.audio.toggleSeaSound(soundEnabled);
+                
+                // Update button icon based on sound state
+                if (soundEnabled) {
+                    soundButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                    </svg>`;
+                } else {
+                    soundButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                    </svg>`;
+                }
+            } else {
+                // If audio not initialized, try to initialize it
+                const initEvent = new Event('click');
+                document.dispatchEvent(initEvent);
+            }
+        });
+        
+        buttonContainer.appendChild(soundButton);
+        this.elements.soundButton = soundButton;
+    }
+    
+    /**
+     * Update sound button state based on audio initialization status
+     * @param {boolean} initialized - Whether audio was successfully initialized
+     */
+    updateSoundButtonState(initialized) {
+        if (this.elements.soundButton) {
+            if (initialized) {
+                this.elements.soundButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>`;
+                this.elements.soundButton.style.opacity = '1';
+            } else {
+                this.elements.soundButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                </svg>`;
+                this.elements.soundButton.style.opacity = '0.5';
+            }
+        }
+    }
+
+    /**
+     * Toggle camera mode between 'orbit' and 'boat'
+     */
+    toggleCameraMode() {
+        if (window.sail && typeof window.sail.toggleCameraMode === 'function') {
+            window.sail.toggleCameraMode();
+            // Update the button appearance to indicate current mode
+            if (window.sail.cameraMode === 'boat') {
+                this.elements.cameraButton.querySelector('svg').style.fill = '#3399ff';
+            } else {
+                this.elements.cameraButton.querySelector('svg').style.fill = 'white';
+            }
+        } else {
+            console.error('Simulator or toggleCameraMode function not available');
+        }
     }
 }
 

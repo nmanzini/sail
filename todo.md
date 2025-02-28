@@ -1,12 +1,12 @@
 # TODO
 
 ## usage
-- ✅ add way to share a screenshot on x.com and tag me @nicolamanzini
-- ✅ add feature request/bug report button for sharing feedback on X with @nicolamanzini tag
+
 
 ## UI
 - more realisti sea. maybe an animation
 - add flag on top of the boat. that follows the wind direction. with the country of the prson that joins.
+
 
 ## Physics
 

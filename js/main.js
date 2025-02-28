@@ -4,6 +4,7 @@ import World from './components/World.js';
 import Boat from './components/Boat.js';
 import UI from './components/UI.js';
 import MobileControls from './components/MobileControls.js';
+import AudioManager from './components/AudioManager.js';
 
 /**
  * Main application class for the sailing simulator
@@ -20,6 +21,7 @@ class Sail {
         this.world = null;
         this.boat = null;
         this.ui = null;
+        this.audio = null;
         
         // Time tracking
         this.clock = new THREE.Clock();
@@ -80,6 +82,13 @@ class Sail {
         const initialWindDirection = new THREE.Vector3(0, 0, 1); // Wind blowing from south to north
         this.world.setWind(initialWindDirection, 15); // Stronger wind for better visibility of forces and easier movement
         
+        // Initialize audio system earlier in the loading process (before boat creation)
+        this.audio = new AudioManager();
+        
+        // Start audio initialization immediately - this will load the audio files in the background
+        // The actual playback will still require user interaction due to browser policies
+        this.audio.init().catch(err => console.warn('Audio pre-initialization failed:', err));
+        
         // Create boat with options
         const boatOptions = {
             // Physics options
@@ -127,15 +136,58 @@ class Sail {
             this.controls.update();
         }
         
-        // Create a camera toggle button in the UI
-        this.createCameraToggleButton();
-        
         // Handle window resize
         window.addEventListener('resize', this.onWindowResize.bind(this));
+        
+        // Set up event listeners for audio initialization
+        this.setupAudioInitialization();
         
         // Start animation loop
         this.lastTime = this.clock.getElapsedTime();
         this.animate();
+    }
+    
+    /**
+     * Set up event listeners to initialize audio on user interaction
+     * (required by browsers to allow audio playback)
+     */
+    setupAudioInitialization() {
+        const initAudio = () => {
+            if (this.audio) {
+                this.audio.init().then(() => {
+                    console.log('Audio system initialized');
+                    
+                    // Start with appropriate levels based on current state
+                    const windSpeed = this.world.getWindSpeed();
+                    const windDirection = this.world.getWindDirection();
+                    this.audio.updateWindSound(windSpeed, windDirection);
+                    this.audio.updateSeaSound(0.2); // Reduced sea sound intensity from 0.3 to 0.2
+                    
+                    // Update the sound button state
+                    if (this.ui) {
+                        this.ui.updateSoundButtonState(true);
+                    }
+                    
+                }).catch(error => {
+                    console.error('Failed to initialize audio:', error);
+                    
+                    // Update the sound button state to show error
+                    if (this.ui) {
+                        this.ui.updateSoundButtonState(false);
+                    }
+                });
+            }
+            
+            // Remove event listeners after first interaction
+            document.removeEventListener('click', initAudio);
+            document.removeEventListener('keydown', initAudio);
+            document.removeEventListener('touchstart', initAudio);
+        };
+        
+        // Add event listeners for common user interactions
+        document.addEventListener('click', initAudio);
+        document.addEventListener('keydown', initAudio);
+        document.addEventListener('touchstart', initAudio);
     }
     
     /**
@@ -197,6 +249,27 @@ class Sail {
         
         // Update boat
         this.boat.update(deltaTime);
+        
+        // Update audio
+        if (this.audio) {
+            const windSpeed = this.world.getWindSpeed();
+            const windDirection = this.world.getWindDirection();
+            
+            // Get boat speed for sea sound intensity
+            const boatSpeed = this.boat.getSpeedInKnots();
+            
+            // Map boat speed to sea sound intensity (0.4 to 1.0 range)
+            const seaIntensity = 0.4 + Math.min(0.6, boatSpeed / 8) * 0.6;
+            
+            // Only update active sounds
+            if (this.audio.windSound.playing) {
+                this.audio.updateWindSound(windSpeed, windDirection);
+            }
+            
+            if (this.audio.seaSound.playing) {
+                this.audio.updateSeaSound(seaIntensity);
+            }
+        }
         
         // Update UI
         this.ui.update();
@@ -371,35 +444,6 @@ class Sail {
             this.camera.fov = 90;
             this.camera.updateProjectionMatrix();
         }
-    }
-    
-    /**
-     * Creates a button in the UI for toggling camera mode
-     */
-    createCameraToggleButton() {
-        const controlsContainer = document.getElementById('controls-container');
-        if (!controlsContainer) return;
-
-        const cameraButton = document.createElement('button');
-        cameraButton.id = 'camera-toggle-btn';
-        cameraButton.className = 'control-button';
-        cameraButton.textContent = 'Toggle Camera (C)';
-        cameraButton.style.position = 'absolute';
-        cameraButton.style.top = '10px';
-        cameraButton.style.right = '10px';
-        cameraButton.style.padding = '8px 12px';
-        cameraButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        cameraButton.style.color = 'white';
-        cameraButton.style.border = 'none';
-        cameraButton.style.borderRadius = '4px';
-        cameraButton.style.cursor = 'pointer';
-        cameraButton.style.zIndex = '1000';
-
-        cameraButton.addEventListener('click', () => {
-            this.toggleCameraMode();
-        });
-
-        controlsContainer.appendChild(cameraButton);
     }
 }
 

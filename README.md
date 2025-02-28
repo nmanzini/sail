@@ -38,6 +38,7 @@ This simulator is built as a single HTML file using:
 
 The entire application is contained in a single HTML file for simplicity.
 
+
 ## License
 
 MIT 
