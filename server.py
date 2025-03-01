@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import websockets
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -98,7 +99,8 @@ async def handler(websocket):
 
 async def main():
     host = "0.0.0.0"
-    port = 8765
+    # Get port from environment variable (Heroku sets this)
+    port = int(os.environ.get("PORT", 8765))
     
     logging.info(f"Starting WebSocket server on {host}:{port}")
     
