@@ -194,35 +194,7 @@ async def spawn_boats_over_time():
         try:
             await asyncio.sleep(spawn_interval)
             
-            # Always generate a new boat and remove an old one
-            if len(ai_boats) > 0:
-                try:
-                    # Find the oldest boat to remove
-                    oldest_boat_id = None
-                    oldest_time = float('inf')
-                    
-                    for boat_id, boat_data in list(ai_boats.items()):
-                        if boat_data.get("created_at", float('inf')) < oldest_time:
-                            oldest_time = boat_data.get("created_at", float('inf'))
-                            oldest_boat_id = boat_id
-                    
-                    if oldest_boat_id:
-                        # Remove the oldest boat
-                        boat_name = ai_boats[oldest_boat_id]["boat_data"]["name"]
-                        del ai_boats[oldest_boat_id]
-                        
-                        # Notify clients that this boat is gone
-                        disconnection_message = json.dumps({
-                            "type": "boat_disconnected",
-                            "client_id": oldest_boat_id
-                        })
-                        await broadcast_to_all(disconnection_message)
-                        
-                        logging.info(f"Removed oldest boat: {boat_name} (ID: {oldest_boat_id})")
-                except Exception as e:
-                    logging.error(f"Error removing oldest boat: {e}")
-            
-            # Always generate a new boat if we haven't reached the target
+            # Generate additional boats up to target_boats
             if len(ai_boats) < target_boats:
                 try:
                     # Choose the next direction (alternating)
