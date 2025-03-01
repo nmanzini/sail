@@ -6,6 +6,7 @@ import os
 import math
 import time
 import uuid
+import statistics
 
 # Configure logging
 logging.basicConfig(
@@ -16,8 +17,14 @@ logging.basicConfig(
 # Store connected clients and their boat data
 connected_clients = {}
 
-# Store fake boat data
-fake_boats = {}
+# Store AI boat data
+ai_boats = {}
+
+# Track player positions for dynamic AI boat placement
+player_positions = []
+
+# Debug flag - set to False to disable verbose logging
+debug_boats = False
 
 async def register(websocket):
     """Register a new client connection."""
@@ -34,22 +41,32 @@ async def register(websocket):
         if cid != client_id and data["boat_data"]:
             other_boats[cid] = data["boat_data"]
     
-    # Add fake boats to the initial boats list
-    for fake_id, fake_data in fake_boats.items():
-        other_boats[fake_id] = fake_data["boat_data"]
-            
+    # Add AI boats to the initial boats list
+    for ai_id, ai_data in ai_boats.items():
+        other_boats[ai_id] = ai_data["boat_data"]
+    
     if other_boats:
-        await websocket.send(json.dumps({
+        initial_message = json.dumps({
             "type": "initial_boats",
             "boats": other_boats
-        }))
+        })
+        await websocket.send(initial_message)
 
 async def unregister(websocket):
     """Unregister a client connection."""
     client_id = id(websocket)
     if client_id in connected_clients:
+        # Log player's last position
+        if connected_clients[client_id]["boat_data"]:
+            pos = connected_clients[client_id]["boat_data"]["position"]
+            logging.info(f"Client {client_id} disconnected. Last position: x={pos['x']}, y={pos['y']}. Remaining clients: {len(connected_clients)-1}")
+        else:
+            logging.info(f"Client {client_id} disconnected. No position data. Remaining clients: {len(connected_clients)-1}")
+            
         del connected_clients[client_id]
-        logging.info(f"Client {client_id} disconnected. Remaining clients: {len(connected_clients)}")
+        
+        # Update player positions list
+        update_player_position_list()
         
         # Notify other clients that this boat is gone
         disconnection_message = json.dumps({
@@ -58,6 +75,34 @@ async def unregister(websocket):
         })
         
         await broadcast_to_others(disconnection_message, client_id)
+
+def update_player_position_list(log_positions=False):
+    """Update the list of player positions for AI boat placement."""
+    global player_positions
+    player_positions = []
+    
+    for client_id, client_data in connected_clients.items():
+        if client_data["boat_data"] and "position" in client_data["boat_data"]:
+            player_positions.append(client_data["boat_data"]["position"])
+            
+    # Log the current player positions (only if requested to avoid log spam)
+    if log_positions and player_positions:
+        positions_str = ", ".join([f"({p['x']}, {p['y']})" for p in player_positions])
+        logging.info(f"Current player positions: {positions_str}")
+    elif log_positions:
+        logging.info("No player positions available")
+
+def get_player_center_area():
+    """Calculate the center area where players are located."""
+    if not player_positions:
+        # Default coordinates if no players
+        return {"x": 60, "y": 0}  # Set default to expected player area
+    
+    # Calculate average position
+    avg_x = statistics.mean([p["x"] for p in player_positions])
+    avg_y = statistics.mean([p["y"] for p in player_positions])
+    
+    return {"x": avg_x, "y": avg_y}
 
 async def broadcast_to_all(message):
     """Broadcast message to all clients."""
@@ -80,99 +125,153 @@ async def broadcast_to_others(message, sender_id):
     if tasks:
         await asyncio.gather(*tasks)
 
-def create_fake_boats():
-    """Create fake boats with initial positions."""
-    # Fake boat 1 - moves in a circle
-    circle_boat_id = f"fake_circle_{uuid.uuid4()}"
-    fake_boats[circle_boat_id] = {
-        "boat_data": {
-            "position": {"x": 0, "y": 0},
-            "rotation": 0,
-            "speed": 5,
-            "name": "Circle Boat",
-            "color": "#FF5733"
-        },
-        "pattern": "circle",
-        "radius": 100,
-        "angle": 0
-    }
+def create_ai_boats():
+    """Create initial AI-controlled boats."""
+    # Center position for boats to start from
+    center = {"x": 60, "y": 0}  # Middle of the observed player path
     
-    # Fake boat 2 - moves in a square
-    square_boat_id = f"fake_square_{uuid.uuid4()}"
-    fake_boats[square_boat_id] = {
-        "boat_data": {
-            "position": {"x": 200, "y": 200},
-            "rotation": 0,
-            "speed": 3,
-            "name": "Square Boat",
-            "color": "#3366FF"
-        },
-        "pattern": "square",
-        "side": 150,
-        "current_side": 0,
-        "progress": 0
-    }
+    # We'll start with 2 boats (one in each direction) and spawn more over time
+    directions = [
+        {"name": "Eastbound", "angle": math.pi/2, "color": "#2F4F4F", "speed": 5},
+        {"name": "Westbound", "angle": 3*math.pi/2, "color": "#006400", "speed": 4.8}
+    ]
     
-    logging.info(f"Created fake boats: {circle_boat_id}, {square_boat_id}")
+    for direction in directions:
+        create_new_boat(direction)
+    
+    logging.info(f"Created initial AI boats sailing east and west from center ({center['x']}, {center['y']})")
 
-async def update_fake_boats():
-    """Update positions of fake boats periodically."""
+def create_new_boat(direction):
+    """Create a new AI boat with the specified direction."""
+    center = {"x": 60, "y": 0}  # Middle of the observed player path
+    boat_id = f"pirate_{uuid.uuid4()}"
+    
+    # In Three.js, rotation.y of 0 points along negative Z axis
+    movement_angle = direction["angle"]
+    # Convert from "mathematical angle" to "Three.js rotation.y angle"
+    rotation_y = movement_angle
+    
+    ai_boats[boat_id] = {
+        "boat_data": {
+            "position": {"x": center["x"], "y": 0, "z": center["y"]},
+            "rotation": {"x": 0, "y": rotation_y, "z": 0},
+            "speed": direction["speed"],
+            "name": f"{direction['name']} Pirate",
+            "color": direction["color"],
+            "sailAngle": 0
+        },
+        "direction": {
+            "x": math.sin(movement_angle),  # x component of direction
+            "z": -math.cos(movement_angle)  # z component of direction (negative z is forward in Three.js)
+        },
+        "speed": direction["speed"],
+        "start_position": {"x": center["x"], "z": center["y"]},
+        "distance": 0,
+        "max_distance": 600,  # Increased distance before resetting (hundreds of units away)
+        "created_at": time.time()  # Add creation timestamp to track boat age
+    }
+    
+    return boat_id
+
+async def spawn_boats_over_time():
+    """Spawn new boats periodically, replacing old ones to maintain a constant number."""
+    spawn_interval = 30  # Spawn a new boat every 30 seconds
+    target_boats = 6  # Target number of boats
+    
+    # Direction templates for new boats
+    directions = [
+        {"name": "Eastbound", "angle": math.pi/2, "color": "#2F4F4F", "speed": 5},
+        {"name": "Westbound", "angle": 3*math.pi/2, "color": "#006400", "speed": 4.8}
+    ]
+    
+    direction_index = 0  # Alternate between directions
+    
+    # Wait a bit before starting to replace boats
+    await asyncio.sleep(spawn_interval * 2)
+    
     while True:
-        for fake_id, fake_data in fake_boats.items():
-            if fake_data["pattern"] == "circle":
-                # Update circle boat position
-                angle = fake_data["angle"]
-                radius = fake_data["radius"]
+        await asyncio.sleep(spawn_interval)
+        
+        # Always generate a new boat and remove an old one
+        if len(ai_boats) > 0:
+            # Find the oldest boat to remove
+            oldest_boat_id = None
+            oldest_time = float('inf')
+            
+            for boat_id, boat_data in ai_boats.items():
+                if boat_data.get("created_at", float('inf')) < oldest_time:
+                    oldest_time = boat_data.get("created_at", float('inf'))
+                    oldest_boat_id = boat_id
+            
+            if oldest_boat_id:
+                # Remove the oldest boat
+                boat_name = ai_boats[oldest_boat_id]["boat_data"]["name"]
+                del ai_boats[oldest_boat_id]
                 
-                # Calculate new position
-                x = radius * math.cos(angle)
-                y = radius * math.sin(angle)
+                # Notify clients that this boat is gone
+                disconnection_message = json.dumps({
+                    "type": "boat_disconnected",
+                    "client_id": oldest_boat_id
+                })
+                await broadcast_to_all(disconnection_message)
                 
-                # Update boat data
-                fake_data["boat_data"]["position"]["x"] = x
-                fake_data["boat_data"]["position"]["y"] = y
-                fake_data["boat_data"]["rotation"] = (angle + math.pi/2) % (2 * math.pi)
-                
-                # Increment angle for next update
-                fake_data["angle"] = (angle + 0.05) % (2 * math.pi)
-                
-            elif fake_data["pattern"] == "square":
-                # Update square boat position
-                side = fake_data["side"]
-                current_side = fake_data["current_side"]
-                progress = fake_data["progress"]
-                
-                # Calculate new position based on which side of the square we're on
-                if current_side == 0:  # Moving right
-                    fake_data["boat_data"]["position"]["x"] = progress
-                    fake_data["boat_data"]["position"]["y"] = 0
-                    fake_data["boat_data"]["rotation"] = 0
-                elif current_side == 1:  # Moving down
-                    fake_data["boat_data"]["position"]["x"] = side
-                    fake_data["boat_data"]["position"]["y"] = progress
-                    fake_data["boat_data"]["rotation"] = math.pi / 2
-                elif current_side == 2:  # Moving left
-                    fake_data["boat_data"]["position"]["x"] = side - progress
-                    fake_data["boat_data"]["position"]["y"] = side
-                    fake_data["boat_data"]["rotation"] = math.pi
-                elif current_side == 3:  # Moving up
-                    fake_data["boat_data"]["position"]["x"] = 0
-                    fake_data["boat_data"]["position"]["y"] = side - progress
-                    fake_data["boat_data"]["rotation"] = 3 * math.pi / 2
-                
-                # Increment progress for next update
-                fake_data["progress"] += 2
-                
-                # Move to next side if we've completed the current one
-                if fake_data["progress"] > side:
-                    fake_data["current_side"] = (current_side + 1) % 4
-                    fake_data["progress"] = 0
+                logging.info(f"Removed oldest boat: {boat_name} (ID: {oldest_boat_id})")
+        
+        # Always generate a new boat if we haven't reached the target
+        if len(ai_boats) < target_boats:
+            # Choose the next direction (alternating)
+            direction = directions[direction_index % len(directions)]
+            direction_index += 1
+            
+            # Create a new boat and log it
+            boat_id = create_new_boat(direction)
+            logging.info(f"Spawned new {direction['name']} pirate (Total: {len(ai_boats)}/{target_boats})")
+            
+            # Create initial boat data for new clients
+            boat_data = {
+                "type": "boat_update",
+                "client_id": boat_id,
+                "boat_data": ai_boats[boat_id]["boat_data"]
+            }
+            
+            # Broadcast the new boat to all clients
+            await broadcast_to_all(json.dumps(boat_data))
+
+async def update_ai_boats():
+    """Update positions of AI boats sailing in straight lines."""
+    while True:
+        for ai_id, ai_data in ai_boats.items():
+            # Get current position and direction
+            current_x = ai_data["boat_data"]["position"]["x"]
+            current_z = ai_data["boat_data"]["position"]["z"]
+            direction_x = ai_data["direction"]["x"]
+            direction_z = ai_data["direction"]["z"]
+            speed = ai_data["speed"]
+            
+            # Calculate new position (straight line movement)
+            new_x = current_x + direction_x * speed * 0.1  # Scale speed by time factor
+            new_z = current_z + direction_z * speed * 0.1
+            
+            # Update distance traveled
+            ai_data["distance"] += speed * 0.1
+            
+            # Check if boat has reached max distance
+            if ai_data["distance"] >= ai_data["max_distance"]:
+                # Reset to start position
+                new_x = ai_data["start_position"]["x"]
+                new_z = ai_data["start_position"]["z"]
+                ai_data["distance"] = 0
+                logging.info(f"Pirate {ai_id} ({ai_data['boat_data']['name']}) reached maximum distance and reset to start position")
+            
+            # Update boat data
+            ai_data["boat_data"]["position"]["x"] = new_x
+            ai_data["boat_data"]["position"]["z"] = new_z
             
             # Broadcast updated boat position to all clients
             broadcast_data = {
                 "type": "boat_update",
-                "client_id": fake_id,
-                "boat_data": fake_data["boat_data"]
+                "client_id": ai_id,
+                "boat_data": ai_data["boat_data"]
             }
             
             await broadcast_to_all(json.dumps(broadcast_data))
@@ -185,15 +284,25 @@ async def handler(websocket):
     # Register new client
     await register(websocket)
     client_id = id(websocket)
+    update_count = 0
     
     try:
         async for message in websocket:
             try:
                 data = json.loads(message)
+                update_count += 1
                 
                 if data["type"] == "boat_update":
                     # Store the client's boat data
                     connected_clients[client_id]["boat_data"] = data["boat_data"]
+                    
+                    # Log boat position occasionally (not every update to avoid log spam)
+                    if debug_boats and update_count % 100 == 0 and "position" in data["boat_data"]:
+                        pos = data["boat_data"]["position"]
+                        logging.info(f"Client {client_id} boat position: ({pos['x']}, {pos['y']})")
+                    
+                    # Update the player positions list
+                    update_player_position_list()
                     
                     # Create message to broadcast
                     broadcast_data = {
@@ -224,11 +333,14 @@ async def main():
     
     logging.info(f"Starting WebSocket server on {host}:{port}")
     
-    # Create fake boats
-    create_fake_boats()
+    # Create initial AI boats
+    create_ai_boats()
     
-    # Start fake boat update task
-    fake_boat_task = asyncio.create_task(update_fake_boats())
+    # Start AI boat update task
+    ai_boat_task = asyncio.create_task(update_ai_boats())
+    
+    # Start boat spawning task
+    spawn_task = asyncio.create_task(spawn_boats_over_time())
     
     async with websockets.serve(handler, host, port):
         await asyncio.Future()  # Run forever
