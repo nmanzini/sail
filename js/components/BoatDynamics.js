@@ -7,6 +7,9 @@ class BoatDynamics {
     constructor(world, options = {}) {
         this.world = world;
         
+        // Flag if this is a remote boat that doesn't need physics calculations
+        this.isRemoteBoat = options.isRemoteBoat || false;
+        
         // Initialize state
         this.initState(options);
     }
@@ -17,7 +20,7 @@ class BoatDynamics {
     initState(options = {}) {
         // Core state
         this.position = new THREE.Vector3(0, 0, 0);
-        this.rotation = Math.PI / 2;  // Start facing east
+        this.rotation = new THREE.Vector3(0, Math.PI / 2, 0);  // Start facing east
         this.speed = 0;
         this.sailAngle = 0;
         this.rudderAngle = 0;
@@ -41,6 +44,7 @@ class BoatDynamics {
         this.sailForce = new THREE.Vector3();
         this.forwardForce = new THREE.Vector3();
         this.lateralForce = new THREE.Vector3();
+        this.dragForce = new THREE.Vector3();
     }
     
     /**
@@ -63,7 +67,7 @@ class BoatDynamics {
     setSailAngle(angle) {
         // Get current wind direction
         const windDirection = this.world.getWindDirection().clone();
-        const boatDirection = this.getDirectionVector(this.rotation);
+        const boatDirection = this.getDirectionVector(this.rotation.y);
         
         // Determine if wind is coming from the left or right of the boat
         const windCrossBoat = new THREE.Vector3().crossVectors(boatDirection, windDirection);
@@ -109,11 +113,11 @@ class BoatDynamics {
         }
         
         // Calculate sail direction and normal vectors
-        const sailDirection = this.getDirectionVector(this.rotation + this.sailAngle);
-        const sailNormal = this.getDirectionVector(this.rotation + this.sailAngle + Math.PI/2);
+        const sailDirection = this.getDirectionVector(this.rotation.y + this.sailAngle);
+        const sailNormal = this.getDirectionVector(this.rotation.y + this.sailAngle + Math.PI/2);
         
         // Get boat direction
-        const boatDirection = this.getDirectionVector(this.rotation);
+        const boatDirection = this.getDirectionVector(this.rotation.y);
         
         // Calculate the vector representing from which side the wind is hitting the sail
         // Use cross product: positive Y means wind is from left side of sail
@@ -146,7 +150,7 @@ class BoatDynamics {
      * @param {THREE.Vector3} sailForce - The sail force vector
      */
     splitSailForce(sailForce) {
-        const forwardDirection = this.getDirectionVector(this.rotation);
+        const forwardDirection = this.getDirectionVector(this.rotation.y);
         
         // Project sail force onto forward direction
         const forwardComponent = sailForce.clone().projectOnVector(forwardDirection);
@@ -172,11 +176,11 @@ class BoatDynamics {
         const turnRate = -1 * this.rudderAngle * speedFactor * this.rudderEfficiency / this.inertia;
         
         // Apply turn rate to rotation
-        this.rotation += turnRate * deltaTime;
+        this.rotation.y += turnRate * deltaTime;
         
         // Normalize rotation to 0-2π range
-        this.rotation = this.rotation % (Math.PI * 2);
-        if (this.rotation < 0) this.rotation += Math.PI * 2;
+        this.rotation.y = this.rotation.y % (Math.PI * 2);
+        if (this.rotation.y < 0) this.rotation.y += Math.PI * 2;
     }
     
     /**
@@ -188,10 +192,11 @@ class BoatDynamics {
         const dragMagnitude = this.dragCoefficient * this.speed * this.speed * this.speed;
         
         // Drag always opposes motion, so it's in the opposite direction of travel
-        const boatDirection = this.getDirectionVector(this.rotation);
+        const boatDirection = this.getDirectionVector(this.rotation.y);
         
         // Return the drag force vector (negative because it opposes motion)
-        return boatDirection.clone().multiplyScalar(-dragMagnitude);
+        this.dragForce = boatDirection.clone().multiplyScalar(-dragMagnitude);
+        return this.dragForce;
     }
     
     /**
@@ -203,9 +208,9 @@ class BoatDynamics {
         
         // Get lateral direction for determining heel direction
         const lateralDirection = new THREE.Vector3(
-            -Math.cos(this.rotation), 
+            -Math.cos(this.rotation.y), 
             0, 
-            Math.sin(this.rotation)
+            Math.sin(this.rotation.y)
         );
         
         const heelDirection = Math.sign(this.lateralForce.dot(lateralDirection));
@@ -222,39 +227,55 @@ class BoatDynamics {
     }
     
     /**
-     * Update the boat physics
+     * Update the boat dynamics
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        // Ensure deltaTime is reasonable
-        const clampedDeltaTime = Math.min(deltaTime, 0.1);
+        // Skip physics calculations for remote boats
+        if (this.isRemoteBoat) {
+            return;
+        }
         
-        // Calculate forces
+        // Skip if no world is defined
+        if (!this.world) {
+            return;
+        }
+        
+        // Calculate sail force based on sail angle and wind
         this.sailForce = this.calculateSailForce();
+        
+        // Split sail force into forward and lateral components
         this.splitSailForce(this.sailForce);
         
-        // Get the drag force as a vector
-        const dragForceVector = this.calculateDragForce();
-        // Extract just the magnitude (negative value)
-        const dragForce = dragForceVector.length() * -1;
+        // Apply rudder effect on rotation
+        this.applyRudderEffect(deltaTime);
         
-        // Combine forces to calculate net acceleration
-        const forwardForceMagnitude = this.forwardForce.length();
-        const netForce = forwardForceMagnitude + dragForce; // Sum of propulsion and drag
-        const acceleration = netForce / this.mass;
+        // Calculate drag force
+        this.calculateDragForce();
         
-        // Apply acceleration to update speed (always keep speed >= 0)
-        this.speed = Math.max(0, this.speed + acceleration * clampedDeltaTime * 10);
+        // Update heel angle based on lateral force
+        this.updateHeelAngle(deltaTime);
         
-        // Apply rudder effect
-        this.applyRudderEffect(clampedDeltaTime);
+        // Calculate net force
+        const netForce = new THREE.Vector3()
+            .addVectors(this.forwardForce, this.dragForce);
         
-        // Update position based on speed and direction
-        const forwardDir = this.getDirectionVector(this.rotation);
-        this.position.add(forwardDir.multiplyScalar(this.speed * clampedDeltaTime));
+        // Calculate acceleration (Force = mass * acceleration)
+        const acceleration = netForce.length() / this.mass;
         
-        // Update heel angle
-        this.updateHeelAngle(clampedDeltaTime);
+        // Apply acceleration to speed
+        if (netForce.dot(this.getDirectionVector(this.rotation.y)) > 0) {
+            this.speed += acceleration * deltaTime;
+        } else {
+            this.speed -= acceleration * deltaTime;
+            if (this.speed < 0) this.speed = 0;
+        }
+        
+        // Move boat based on speed and direction
+        const moveVector = this.getDirectionVector(this.rotation.y)
+            .multiplyScalar(this.speed * deltaTime);
+        
+        this.position.add(moveVector);
     }
     
     /**
@@ -263,8 +284,8 @@ class BoatDynamics {
      */
     getState() {
         return {
-            position: this.position.clone(),
-            rotation: this.rotation,
+            position: this.position,
+            rotation: this.rotation.y,
             speed: this.speed,
             sailAngle: this.sailAngle,
             rudderAngle: this.rudderAngle,
@@ -281,7 +302,7 @@ class BoatDynamics {
             sailForce: this.sailForce.clone(),
             forwardForce: this.forwardForce.clone(),
             lateralForce: this.lateralForce.clone(),
-            dragForce: this.calculateDragForce()
+            dragForce: this.dragForce.clone()
         };
     }
     
@@ -297,7 +318,7 @@ class BoatDynamics {
     // ---- Getter methods ----
     
     getPosition() {
-        return this.position.clone();
+        return this.position;
     }
     
     getRotation() {
@@ -309,7 +330,7 @@ class BoatDynamics {
     }
     
     getHeadingInDegrees() {
-        let degrees = (this.rotation * 180 / Math.PI) % 360;
+        let degrees = (this.rotation.y * 180 / Math.PI) % 360;
         if (degrees < 0) degrees += 360;
         return degrees;
     }

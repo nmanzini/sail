@@ -4,6 +4,8 @@
 
 
 ## UI
+- restore the force vectors
+- restore the in eprson camera
 - more realisti sea. maybe an animation
 - add flag on top of the boat. that follows the wind direction. with the country of the prson that joins.
 

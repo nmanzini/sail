@@ -99,8 +99,9 @@ class UI {
         this.createButtonContainer();
         
         // Add buttons to the container
-        this.createCameraButton();
+        // Camera button removed per request
         this.createSoundButton();
+        // Debug button removed per request
         
         this.createControlsPanel();
 
@@ -117,6 +118,14 @@ class UI {
 
         // Set up keyboard controls
         this.setupKeyboardControls();
+
+        // Initialize debug mode state - set to true by default
+        this.debugMode = true;
+
+        // Make sure boat is in debug mode by default (showing acceleration vector)
+        if (window.sail && window.sail.boat) {
+            window.sail.boat.setDebugMode(true);
+        }
 
         // Log that UI has been initialized for debugging
         console.log('UI initialized successfully.');
@@ -203,7 +212,8 @@ class UI {
             rudderAngleSlider: document.getElementById('rudder-angle-slider'),
             rudderAngleValue: document.getElementById('rudder-angle-value'),
             soundButton: document.getElementById('sound-toggle-btn'),
-            cameraButton: document.getElementById('camera-button')
+            cameraButton: document.getElementById('camera-button'),
+            debugButton: null
         };
     }
 
@@ -211,14 +221,54 @@ class UI {
      * Create a debug button that toggles the debug panel
      */
     createDebugButton() {
-        // This method is now empty as the debug button is removed
+        // Create debug button
+        const debugButton = document.createElement('div');
+        debugButton.id = 'debug-button';
+        debugButton.className = 'control-button';
+        debugButton.title = 'Toggle Acceleration Vector';
+        debugButton.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#3399ff">
+                <path d="M12 2L2 12h5v8h10v-8h5L12 2zm0 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+            </svg>
+        `;
+        
+        // Add to button container created earlier
+        const buttonContainer = document.getElementById('button-container');
+        if (buttonContainer) {
+            buttonContainer.appendChild(debugButton);
+        } else {
+            // Fallback to body if button container doesn't exist
+            debugButton.style.position = 'absolute';
+            debugButton.style.top = '10px';
+            debugButton.style.right = '180px';
+            document.body.appendChild(debugButton);
+        }
+        
+        // Add click event
+        debugButton.addEventListener('click', () => this.toggleDebugMode());
+        
+        // Save reference
+        this.elements.debugButton = debugButton;
     }
 
     /**
-     * Toggle debug panel visibility
+     * Toggle debug mode
      */
-    toggleDebugPanel() {
-        // This method is now empty as the debug panel is removed
+    toggleDebugMode() {
+        // Access the Sail instance and toggle debug mode
+        if (window.sail && window.sail.boat) {
+            // Toggle debug mode state
+            this.debugMode = !this.debugMode;
+            
+            // Set the debug mode on the boat
+            window.sail.boat.setDebugMode(this.debugMode);
+            
+            // Update button appearance
+            if (this.elements.debugButton) {
+                this.elements.debugButton.querySelector('svg').style.fill = 
+                    this.debugMode ? '#3399ff' : 'white';
+            }
+        }
     }
 
     /**

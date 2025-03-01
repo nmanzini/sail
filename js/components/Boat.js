@@ -8,6 +8,9 @@ import BoatControls from './BoatControls.js';
  */
 class Boat {
     constructor(scene, world, options = {}) {
+        // Store if this is a remote boat
+        this.isRemoteBoat = options.isRemoteBoat || false;
+        
         // Create the components
         this.dynamics = new BoatDynamics(world, options);
         this.model = new BoatModel(scene, options);
@@ -54,47 +57,84 @@ class Boat {
     
     /**
      * Process touch controls
-     * @param {Object} touchControls - Object containing touch control values
+     * @param {Object} touchControls - Touch control state
      */
     processTouchControls(touchControls) {
         this.controls.processTouchControls(touchControls);
     }
     
     /**
-     * Set initial boat speed (for testing only)
-     * @param {number} speedInKnots - Speed in knots
+     * Set initial speed (for testing)
+     * @param {number} speedInKnots - Initial speed in knots
      */
     setInitialSpeed(speedInKnots) {
         this.dynamics.setInitialSpeed(speedInKnots);
     }
     
     /**
-     * Update the boat
+     * Set position directly (for remote boats)
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {number} z - Z position
+     */
+    setPosition(x, y, z) {
+        if (this.isRemoteBoat) {
+            // For remote boats, we directly set the position without physics
+            this.dynamics.position.set(x, y, z);
+            
+            // Update the model to match
+            this.model.updatePosition(this.dynamics.position);
+        }
+    }
+    
+    /**
+     * Set rotation directly (for remote boats)
+     * @param {number} x - X rotation in radians
+     * @param {number} y - Y rotation in radians
+     * @param {number} z - Z rotation in radians
+     */
+    setRotation(x, y, z) {
+        if (this.isRemoteBoat) {
+            // For remote boats, we directly set the rotation without physics
+            this.dynamics.rotation.set(x, y, z);
+            
+            // Update the model to match
+            this.model.updateRotation(this.dynamics.rotation);
+        }
+    }
+    
+    /**
+     * Get the current sail angle
+     * @returns {number} The sail angle in radians
+     */
+    getSailAngle() {
+        return this.controls.getSailAngle();
+    }
+    
+    /**
+     * Clean up and remove boat from scene
+     */
+    dispose() {
+        // Remove the boat model from the scene
+        this.model.dispose();
+    }
+    
+    /**
+     * Update the boat state
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        // Update controls
-        this.controls.update(deltaTime);
+        // Skip physics update for remote boats as they are controlled by network updates
+        if (!this.isRemoteBoat) {
+            // Update physics 
+            this.dynamics.update(deltaTime);
+            
+            // Update controls - ensures rudder auto-centering works
+            this.controls.update(deltaTime);
+        }
         
-        // Update physics
-        this.dynamics.update(deltaTime);
-        
-        // Get current state and forces
-        const state = this.dynamics.getState();
-        const forces = this.dynamics.getForces();
-        
-        // Add wind direction to state for flag animation
-        state.windDirection = this.world.getWindDirection();
-        
-        // Update visual model
-        this.model.update(state);
-        
-        // Update debug vectors
-        this.model.updateDebugVectors(
-            forces, 
-            this.world.getWindDirection(), 
-            state.rotation
-        );
+        // Update visuals
+        this.model.update(this.dynamics);
     }
     
     // ---- Getter methods (for compatibility with existing code) ----

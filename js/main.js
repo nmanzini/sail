@@ -5,6 +5,7 @@ import UI from './components/UI.js';
 import MobileControls from './components/MobileControls.js';
 import AudioManager from './components/AudioManager.js';
 import CameraController from './components/CameraController.js';
+import MultiplayerManager from './components/MultiplayerManager.js';
 
 /**
  * Main application class for the sailing simulator
@@ -22,6 +23,11 @@ class Sail {
         this.ui = null;
         this.audio = null;
         this.cameraController = null;
+        this.multiplayer = null;
+        
+        // Multiplayer server configuration
+        this.multiplayerEnabled = false;
+        this.serverUrl = 'ws://localhost:8765';
         
         // Time tracking
         this.clock = new THREE.Clock();
@@ -84,6 +90,9 @@ class Sail {
         // Update world with camera reference
         this.world.setCamera(this.camera);
         
+        // Initialize multiplayer
+        this.initMultiplayer();
+        
         // Create UI
         this.ui = new UI(this);
         
@@ -99,6 +108,62 @@ class Sail {
         // Start animation loop
         this.lastTime = this.clock.getElapsedTime();
         this.animate();
+    }
+    
+    /**
+     * Initialize multiplayer functionality
+     */
+    initMultiplayer() {
+        // Create the multiplayer manager
+        this.multiplayer = new MultiplayerManager(this.scene, this.world, this.boat);
+        
+        // Add a button to the UI for connecting to the server
+        this.addMultiplayerButton();
+    }
+    
+    /**
+     * Add a multiplayer connect/disconnect button to the UI
+     */
+    addMultiplayerButton() {
+        // Create a container for the multiplayer button
+        const container = document.createElement('div');
+        container.style.position = 'absolute';
+        container.style.left = '50%';
+        container.style.top = '45px'; // Position below author overlay
+        container.style.transform = 'translateX(-50%)'; // Center horizontally
+        container.style.zIndex = '999'; // Below the author overlay
+        document.body.appendChild(container);
+        
+        // Create the button
+        const button = document.createElement('button');
+        button.textContent = 'Connect to Multiplayer';
+        button.style.padding = '10px 15px';
+        button.style.backgroundColor = '#4CAF50';
+        button.style.color = 'white';
+        button.style.border = 'none';
+        button.style.borderRadius = '4px';
+        button.style.cursor = 'pointer';
+        button.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.3)';
+        button.style.fontSize = '14px';
+        button.style.fontFamily = 'Arial, sans-serif';
+        container.appendChild(button);
+        
+        // Add event listener
+        button.addEventListener('click', () => {
+            if (!this.multiplayerEnabled) {
+                // Connect to server
+                this.multiplayer.connect(this.serverUrl);
+                this.multiplayerEnabled = true;
+                button.textContent = 'Disconnect';
+                button.style.backgroundColor = '#f44336';
+            } else {
+                // Disconnect from server
+                this.multiplayer.disconnect();
+                this.multiplayerEnabled = false;
+                button.textContent = 'Connect to Multiplayer';
+                button.style.backgroundColor = '#4CAF50';
+            }
+        });
     }
     
     /**
@@ -186,6 +251,11 @@ class Sail {
         
         // Update boat
         this.boat.update(deltaTime);
+        
+        // Update multiplayer
+        if (this.multiplayer && this.multiplayerEnabled) {
+            this.multiplayer.update(deltaTime);
+        }
         
         // Update audio
         if (this.audio) {

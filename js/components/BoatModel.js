@@ -37,9 +37,9 @@ class BoatModel {
         this.flagWidth = options.flagWidth || 2;
         this.flagHeight = options.flagHeight || 1;
         
-        // Debug vectors
+        // Debug vectors (keeping properties but not using them)
         this.debugVectors = {};
-        this.debugMode = false;
+        this.debugMode = true; // Set to true by default
     }
     
     /**
@@ -207,14 +207,15 @@ class BoatModel {
      * Initialize debug system with vectors
      */
     initDebugSystem() {
-        // Create debug vectors
+        // Only create acceleration vector, other debug vectors were removed
         this.debugVectors = {
-            sailForce: this.createDebugArrow(new THREE.Vector3(0, 10, 0), 0xff0000, 7.5, "Sail Force"),
-            forwardForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0x00ff00, 5, "Forward Force"),
-            lateralForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0x0000ff, 5, "Lateral Force"),
-            dragForce: this.createDebugArrow(new THREE.Vector3(0, 5, 0), 0xff00ff, 5, "Drag Force"), 
-            windDirection: this.createDebugArrow(new THREE.Vector3(0, 15, 0), 0xffff00, 7.5, "Wind")
+            accelerationVector: this.createDebugArrow(new THREE.Vector3(0, 10, 0), 0xff8c00, 5, null)
         };
+        
+        // Make acceleration vector visible by default
+        if (this.debugVectors.accelerationVector) {
+            this.debugVectors.accelerationVector.visible = true;
+        }
     }
     
     /**
@@ -335,10 +336,40 @@ class BoatModel {
     }
     
     /**
-     * Update the visuals of the boat based on dynamic state
-     * @param {Object} state - The current boat state
+     * Update the boat model based on the provided state
+     * @param {Object} dynamicsOrState - Either the boat dynamics object or state object
      */
-    update(state) {
+    update(dynamicsOrState) {
+        // Handle both dynamics object or direct state object
+        let state;
+        
+        if (dynamicsOrState.getState) {
+            // If passed the dynamics object, get the state
+            state = dynamicsOrState.getState();
+            
+            // Get additional info needed for visuals
+            if (dynamicsOrState.world) {
+                state.windDirection = dynamicsOrState.world.getWindDirection();
+            }
+            
+            // Update acceleration vector if in debug mode
+            if (this.debugMode && this.debugVectors.accelerationVector) {
+                const forces = dynamicsOrState.getForces();
+                const rotation = state.rotation;
+                
+                // Calculate acceleration vector (sum of forward and drag forces)
+                const accelerationVector = new THREE.Vector3().addVectors(
+                    forces.forwardForce, 
+                    forces.dragForce
+                );
+                
+                this.updateAccelerationVector(accelerationVector, rotation);
+            }
+        } else {
+            // Use provided state object directly
+            state = dynamicsOrState;
+        }
+        
         // Update position and rotation
         this.boatGroup.position.copy(state.position);
         this.boatGroup.rotation.y = state.rotation;
@@ -353,6 +384,28 @@ class BoatModel {
         // Update flag direction if wind direction is available
         if (state.windDirection) {
             this.updateFlagDirection(state.windDirection, state.rotation);
+        }
+    }
+    
+    /**
+     * Update the boat position directly
+     * @param {THREE.Vector3} position - The new position
+     */
+    updatePosition(position) {
+        this.boatGroup.position.copy(position);
+    }
+    
+    /**
+     * Update the boat rotation directly
+     * @param {THREE.Vector3} rotation - The new rotation
+     */
+    updateRotation(rotation) {
+        // Apply rotation to the boat
+        this.boatGroup.rotation.y = rotation.y;
+        
+        // Apply heel angle if available
+        if (rotation.z !== undefined) {
+            this.boatGroup.rotation.z = rotation.z;
         }
     }
     
@@ -378,46 +431,31 @@ class BoatModel {
     }
     
     /**
-     * Update debug vectors
-     * @param {Object} forces - Forces acting on the boat
-     * @param {THREE.Vector3} windDirection - The current wind direction
+     * Update acceleration vector
+     * @param {THREE.Vector3} accelerationVector - The acceleration vector in world space
      * @param {number} rotation - Current boat rotation
      */
-    updateDebugVectors(forces, windDirection, rotation) {
-        const scaleFactor = 2.5;
-        const updateVector = (vector, force) => {
-            if (!vector) return;
-            
-            // Convert force from world to local space
-            const localForce = force.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -rotation);
-            
-            const normalizedDir = localForce.clone().normalize();
-            const length = Math.max(1, force.length() * scaleFactor);
-            
-            vector.setDirection(normalizedDir);
-            vector.setLength(length);
-            
-            // Make sure that our custom properties are updated
-            vector.currentDirection = normalizedDir;
-            vector.currentLength = length;
-        };
+    updateAccelerationVector(accelerationVector, rotation) {
+        const scaleFactor = 2.0;  // Reduced scale factor to make the vector smaller
+        const vector = this.debugVectors.accelerationVector;
         
-        // Update all debug vectors
-        updateVector(this.debugVectors.sailForce, forces.sailForce);
-        updateVector(this.debugVectors.forwardForce, forces.forwardForce);
-        updateVector(this.debugVectors.lateralForce, forces.lateralForce);
-        updateVector(this.debugVectors.dragForce, forces.dragForce);
+        if (!vector) return;
         
-        // Update wind direction vector
-        if (this.debugVectors.windDirection) {
-            const windDirectionLocal = windDirection.clone().applyAxisAngle(
-                new THREE.Vector3(0, 1, 0), -rotation
-            );
-            this.debugVectors.windDirection.setDirection(windDirectionLocal);
-            
-            // Make sure that our custom properties are updated
-            this.debugVectors.windDirection.currentDirection = windDirectionLocal;
-        }
+        // Convert acceleration from world to local space
+        const localAcceleration = accelerationVector.clone().applyAxisAngle(
+            new THREE.Vector3(0, 1, 0), 
+            -rotation
+        );
+        
+        const normalizedDir = localAcceleration.clone().normalize();
+        const length = Math.max(1, accelerationVector.length() * scaleFactor);
+        
+        vector.setDirection(normalizedDir);
+        vector.setLength(length);
+        
+        // Update custom properties
+        vector.currentDirection = normalizedDir;
+        vector.currentLength = length;
     }
     
     /**
@@ -427,14 +465,12 @@ class BoatModel {
     setDebugMode(enabled) {
         this.debugMode = enabled;
         
-        // Show/hide debug vectors
-        for (const key in this.debugVectors) {
-            if (this.debugVectors[key]) {
-                this.debugVectors[key].visible = enabled;
-            }
+        // Show/hide acceleration vector
+        if (this.debugVectors.accelerationVector) {
+            this.debugVectors.accelerationVector.visible = enabled;
         }
         
-        // Show/hide debug panel
+        // Debug panel only, no vectors to show/hide
         const panel = document.getElementById('debug-panel');
         if (panel) {
             panel.style.display = enabled ? 'block' : 'none';
@@ -463,6 +499,34 @@ class BoatModel {
      */
     getRudder() {
         return this.rudder;
+    }
+
+    /**
+     * Dispose of the boat model and remove from scene
+     */
+    dispose() {
+        if (this.boatGroup) {
+            // Remove boat group from scene
+            this.scene.remove(this.boatGroup);
+            
+            // Dispose of geometries and materials
+            this.boatGroup.traverse((child) => {
+                if (child.geometry) {
+                    child.geometry.dispose();
+                }
+                
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => material.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            });
+        }
+        
+        // Clear debug vectors (keeping this for compatibility)
+        this.debugVectors = {};
     }
 }
 

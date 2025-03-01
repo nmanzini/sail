@@ -1,43 +1,80 @@
-# Sail
+# Multiplayer Sailing Simulator
 
-A browser-based sailing simulator built with Three.js that demonstrates basic sailing physics and controls.
+A 3D multiplayer sailing simulator where players can navigate boats in a shared virtual ocean.
 
 ## Features
 
-- 3D sailing environment with water, sky, and islands
-- Realistic sailing physics (simplified)
-- Control the rudder with A/D keys
-- Adjust sail trim with Left/Right arrow keys
-- Wind visualization with particles and flag
-- Compass showing north direction
-- Speed indicator
+- 3D sailing physics simulation
+- Realistic wind and water effects
+- First-person and orbit camera modes
+- Multiplayer support via WebSocket
+- Interactive sailing controls (keyboard, mouse, touch)
+- Audio feedback based on sailing conditions
 
-## How to Run
+## Getting Started
 
-Simply open the `index.html` file in a modern web browser. No server or build process required!
+### Prerequisites
 
-## Controls
+- Python 3.7+ for the server
+- Modern web browser for the client
+- Internet connection for multiplayer
 
-- **A/D keys**: Control the rudder (turn left/right)
-- **Left/Right arrow keys**: Adjust sail trim
+### Server Setup
 
-## Sailing Tips
+1. Install the required Python package:
 
-- The sail works best when positioned at approximately 90 degrees to the wind
-- Watch the flag on top of the mast to see the relative wind direction
-- Use the compass to navigate around the islands
-- Adjust your sail trim as you change direction relative to the wind
+```bash
+pip install -r requirements.txt
+```
 
-## Technical Details
+2. Start the WebSocket server:
 
-This simulator is built as a single HTML file using:
+```bash
+python server.py
+```
 
-- Three.js for 3D rendering
-- Custom sailing physics
-- CSS for UI elements
+The server will run on port 8765 by default.
 
-The entire application is contained in a single HTML file for simplicity.
+### Client Setup
 
+The client is browser-based and requires no installation. Simply serve the files using a web server or open the index.html file directly in your browser.
+
+For testing with multiple clients, you may need to use a local web server:
+
+```bash
+# Using Python's built-in HTTP server
+python -m http.server 8000
+```
+
+Then navigate to http://localhost:8000 in your browser.
+
+## Multiplayer Usage
+
+1. Start the server as described above
+2. Open the client in your browser
+3. Click the "Connect to Multiplayer" button in the top-right corner
+4. Each connected player will see other players' boats in the shared world
+
+## Default Controls
+
+- **W/S**: Increase/decrease sail angle
+- **A/D**: Turn the rudder left/right
+- **C**: Toggle camera mode (orbit/first-person)
+- **Space**: Reset sail and rudder to center
+
+## Configuration
+
+- The WebSocket server address can be changed in `js/main.js` by modifying the `serverUrl` property.
+- Server port can be modified in `server.py`
+
+## Technical Implementation
+
+The multiplayer system uses WebSockets to:
+1. Transmit boat position, rotation, and sail angle data from each client to the server
+2. Broadcast these updates to all other connected clients
+3. Visualize other players' boats in each client's local world
+
+Data is exchanged in JSON format for compatibility and ease of use.
 
 ## License
 

@@ -17,6 +17,14 @@ class BoatControls {
     }
     
     /**
+     * Get the current sail angle
+     * @returns {number} The sail angle in radians
+     */
+    getSailAngle() {
+        return this.dynamics.getSailAngle();
+    }
+    
+    /**
      * Set the rudder angle based on user input
      * @param {number} angle - The rudder angle in radians
      * @param {boolean} [isFromControl=true] - Whether this angle change is from user control
