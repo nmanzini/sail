@@ -3,8 +3,9 @@ import json
 import logging
 import websockets
 import os
-import datetime
+import math
 import time
+import uuid
 
 # Configure logging
 logging.basicConfig(
@@ -15,28 +16,16 @@ logging.basicConfig(
 # Store connected clients and their boat data
 connected_clients = {}
 
-# Server statistics
-server_stats = {
-    "start_time": time.time(),
-    "connections_total": 0,
-    "messages_received": 0,
-    "messages_sent": 0,
-}
+# Store fake boat data
+fake_boats = {}
 
 async def register(websocket):
     """Register a new client connection."""
     client_id = id(websocket)
     connected_clients[client_id] = {
         "websocket": websocket,
-        "boat_data": None,
-        "connected_at": time.time(),
-        "messages_received": 0,
-        "messages_sent": 0,
+        "boat_data": None
     }
-    
-    # Update server stats
-    server_stats["connections_total"] += 1
-    
     logging.info(f"Client {client_id} connected. Total clients: {len(connected_clients)}")
     
     # Send initial list of other boats to the new client
@@ -44,15 +33,16 @@ async def register(websocket):
     for cid, data in connected_clients.items():
         if cid != client_id and data["boat_data"]:
             other_boats[cid] = data["boat_data"]
+    
+    # Add fake boats to the initial boats list
+    for fake_id, fake_data in fake_boats.items():
+        other_boats[fake_id] = fake_data["boat_data"]
             
     if other_boats:
         await websocket.send(json.dumps({
             "type": "initial_boats",
             "boats": other_boats
         }))
-        # Update stats
-        server_stats["messages_sent"] += 1
-        connected_clients[client_id]["messages_sent"] += 1
 
 async def unregister(websocket):
     """Unregister a client connection."""
@@ -69,6 +59,16 @@ async def unregister(websocket):
         
         await broadcast_to_others(disconnection_message, client_id)
 
+async def broadcast_to_all(message):
+    """Broadcast message to all clients."""
+    tasks = []
+    for client_id, client_data in connected_clients.items():
+        websocket = client_data["websocket"]
+        tasks.append(asyncio.create_task(websocket.send(message)))
+    
+    if tasks:
+        await asyncio.gather(*tasks)
+
 async def broadcast_to_others(message, sender_id):
     """Broadcast message to all clients except the sender."""
     tasks = []
@@ -76,27 +76,112 @@ async def broadcast_to_others(message, sender_id):
         if client_id != sender_id:
             websocket = client_data["websocket"]
             tasks.append(asyncio.create_task(websocket.send(message)))
-            # Update stats for each recipient
-            connected_clients[client_id]["messages_sent"] += 1
-            server_stats["messages_sent"] += 1
     
     if tasks:
         await asyncio.gather(*tasks)
 
-async def handler(websocket, path):
-    """Handle a connection and dispatch messages."""
-    # Handle HTTP request for status dashboard
-    if path == "/":
-        try:
-            # If it's an HTTP request, serve the dashboard
-            headers = websocket.request_headers
-            if headers.get("Upgrade", "").lower() != "websocket":
-                return await serve_dashboard(websocket)
-        except Exception as e:
-            # This might fail if it's a real WebSocket connection
-            logging.info(f"Exception when checking for HTTP request: {e}")
+def create_fake_boats():
+    """Create fake boats with initial positions."""
+    # Fake boat 1 - moves in a circle
+    circle_boat_id = f"fake_circle_{uuid.uuid4()}"
+    fake_boats[circle_boat_id] = {
+        "boat_data": {
+            "position": {"x": 0, "y": 0},
+            "rotation": 0,
+            "speed": 5,
+            "name": "Circle Boat",
+            "color": "#FF5733"
+        },
+        "pattern": "circle",
+        "radius": 100,
+        "angle": 0
+    }
     
-    # Handle WebSocket connection
+    # Fake boat 2 - moves in a square
+    square_boat_id = f"fake_square_{uuid.uuid4()}"
+    fake_boats[square_boat_id] = {
+        "boat_data": {
+            "position": {"x": 200, "y": 200},
+            "rotation": 0,
+            "speed": 3,
+            "name": "Square Boat",
+            "color": "#3366FF"
+        },
+        "pattern": "square",
+        "side": 150,
+        "current_side": 0,
+        "progress": 0
+    }
+    
+    logging.info(f"Created fake boats: {circle_boat_id}, {square_boat_id}")
+
+async def update_fake_boats():
+    """Update positions of fake boats periodically."""
+    while True:
+        for fake_id, fake_data in fake_boats.items():
+            if fake_data["pattern"] == "circle":
+                # Update circle boat position
+                angle = fake_data["angle"]
+                radius = fake_data["radius"]
+                
+                # Calculate new position
+                x = radius * math.cos(angle)
+                y = radius * math.sin(angle)
+                
+                # Update boat data
+                fake_data["boat_data"]["position"]["x"] = x
+                fake_data["boat_data"]["position"]["y"] = y
+                fake_data["boat_data"]["rotation"] = (angle + math.pi/2) % (2 * math.pi)
+                
+                # Increment angle for next update
+                fake_data["angle"] = (angle + 0.05) % (2 * math.pi)
+                
+            elif fake_data["pattern"] == "square":
+                # Update square boat position
+                side = fake_data["side"]
+                current_side = fake_data["current_side"]
+                progress = fake_data["progress"]
+                
+                # Calculate new position based on which side of the square we're on
+                if current_side == 0:  # Moving right
+                    fake_data["boat_data"]["position"]["x"] = progress
+                    fake_data["boat_data"]["position"]["y"] = 0
+                    fake_data["boat_data"]["rotation"] = 0
+                elif current_side == 1:  # Moving down
+                    fake_data["boat_data"]["position"]["x"] = side
+                    fake_data["boat_data"]["position"]["y"] = progress
+                    fake_data["boat_data"]["rotation"] = math.pi / 2
+                elif current_side == 2:  # Moving left
+                    fake_data["boat_data"]["position"]["x"] = side - progress
+                    fake_data["boat_data"]["position"]["y"] = side
+                    fake_data["boat_data"]["rotation"] = math.pi
+                elif current_side == 3:  # Moving up
+                    fake_data["boat_data"]["position"]["x"] = 0
+                    fake_data["boat_data"]["position"]["y"] = side - progress
+                    fake_data["boat_data"]["rotation"] = 3 * math.pi / 2
+                
+                # Increment progress for next update
+                fake_data["progress"] += 2
+                
+                # Move to next side if we've completed the current one
+                if fake_data["progress"] > side:
+                    fake_data["current_side"] = (current_side + 1) % 4
+                    fake_data["progress"] = 0
+            
+            # Broadcast updated boat position to all clients
+            broadcast_data = {
+                "type": "boat_update",
+                "client_id": fake_id,
+                "boat_data": fake_data["boat_data"]
+            }
+            
+            await broadcast_to_all(json.dumps(broadcast_data))
+        
+        # Update every 100ms
+        await asyncio.sleep(0.1)
+
+async def handler(websocket):
+    """Handle a connection and dispatch messages."""
     # Register new client
     await register(websocket)
     client_id = id(websocket)
@@ -104,10 +189,6 @@ async def handler(websocket, path):
     try:
         async for message in websocket:
             try:
-                # Update stats
-                server_stats["messages_received"] += 1
-                connected_clients[client_id]["messages_received"] += 1
-                
                 data = json.loads(message)
                 
                 if data["type"] == "boat_update":
@@ -136,148 +217,18 @@ async def handler(websocket, path):
         # Unregister on disconnection
         await unregister(websocket)
 
-async def serve_dashboard(websocket):
-    """Serve a simple HTML dashboard with server stats."""
-    uptime = time.time() - server_stats["start_time"]
-    uptime_str = str(datetime.timedelta(seconds=int(uptime)))
-    
-    # Create the HTML for the dashboard
-    html = f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sail WebSocket Server Dashboard</title>
-        <style>
-            body {{
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                line-height: 1.6;
-                color: #333;
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 20px;
-                background-color: #f9f9f9;
-            }}
-            h1 {{
-                color: #2c3e50;
-                border-bottom: 2px solid #3498db;
-                padding-bottom: 10px;
-            }}
-            .card {{
-                background: white;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-                padding: 20px;
-                margin-bottom: 20px;
-            }}
-            .stat {{
-                display: flex;
-                justify-content: space-between;
-                border-bottom: 1px solid #eee;
-                padding: 8px 0;
-            }}
-            .stat-label {{
-                font-weight: bold;
-            }}
-            .stat-value {{
-                color: #3498db;
-            }}
-            .connected-clients {{
-                margin-top: 20px;
-            }}
-            .refresh-btn {{
-                background-color: #3498db;
-                color: white;
-                border: none;
-                padding: 10px 15px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
-            }}
-            .refresh-btn:hover {{
-                background-color: #2980b9;
-            }}
-            .footer {{
-                margin-top: 30px;
-                font-size: 12px;
-                color: #7f8c8d;
-                text-align: center;
-            }}
-            @media (max-width: 600px) {{
-                body {{
-                    padding: 10px;
-                }}
-            }}
-        </style>
-    </head>
-    <body>
-        <h1>📡 Sail WebSocket Server Dashboard</h1>
-        
-        <div class="card">
-            <h2>Server Status</h2>
-            <div class="stat">
-                <span class="stat-label">Status</span>
-                <span class="stat-value">Online ✅</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">Uptime</span>
-                <span class="stat-value">{uptime_str}</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">Current Connections</span>
-                <span class="stat-value">{len(connected_clients)}</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">Total Connections</span>
-                <span class="stat-value">{server_stats["connections_total"]}</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">Messages Received</span>
-                <span class="stat-value">{server_stats["messages_received"]}</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">Messages Sent</span>
-                <span class="stat-value">{server_stats["messages_sent"]}</span>
-            </div>
-        </div>
-        
-        <div class="card connected-clients">
-            <h2>Connected Clients</h2>
-            {"".join([f'''
-            <div class="stat">
-                <span class="stat-label">Client {i+1}</span>
-                <span class="stat-value">Connected for {int(time.time() - data["connected_at"])} seconds</span>
-            </div>
-            ''' for i, (client_id, data) in enumerate(connected_clients.items())])}
-            
-            {f'<p>No clients currently connected.</p>' if not connected_clients else ''}
-        </div>
-        
-        <button class="refresh-btn" onclick="window.location.reload()">Refresh Dashboard</button>
-        
-        <div class="footer">
-            <p>Server running on Heroku • <a href="https://github.com/nmanzini/sail" target="_blank">View Source on GitHub</a></p>
-        </div>
-        
-        <script>
-            // Auto-refresh the dashboard every 30 seconds
-            setTimeout(() => window.location.reload(), 30000);
-        </script>
-    </body>
-    </html>
-    """
-    
-    # Respond with the HTML dashboard
-    response = f"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {len(html)}\r\n\r\n{html}"
-    await websocket.send(response)
-
 async def main():
     host = "0.0.0.0"
     # Get port from environment variable (Heroku sets this)
     port = int(os.environ.get("PORT", 8765))
     
     logging.info(f"Starting WebSocket server on {host}:{port}")
+    
+    # Create fake boats
+    create_fake_boats()
+    
+    # Start fake boat update task
+    fake_boat_task = asyncio.create_task(update_fake_boats())
     
     async with websockets.serve(handler, host, port):
         await asyncio.Future()  # Run forever
