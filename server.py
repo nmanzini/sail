@@ -177,7 +177,7 @@ def create_new_boat(direction):
 async def spawn_boats_over_time():
     """Spawn new boats periodically, replacing old ones to maintain a constant number."""
     spawn_interval = 30  # Spawn a new boat every 30 seconds
-    target_boats = 6  # Target number of boats
+    target_boats = 3  # Target number of boats
     
     # Direction templates for new boats
     directions = [
