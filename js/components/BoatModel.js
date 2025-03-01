@@ -10,8 +10,14 @@ class BoatModel {
         // Initialize boat dimensions
         this.initDimensions(options);
         
-        // Determine user's country flag
-        this.determineCountryFlag();
+        // Set custom flag code if provided, otherwise determine from browser
+        if (options.flagCode) {
+            this.countryCode = options.flagCode;
+            this.loadFlagTexture();
+        } else {
+            // Determine user's country flag
+            this.determineCountryFlag();
+        }
         
         // Create the boat 3D model
         this.createBoatModel();
@@ -123,23 +129,18 @@ class BoatModel {
     loadFlagTexture() {
         try {
             // Check if country code is valid
-            if (!this.countryCode || this.countryCode.length !== 2) {
-                console.warn('Invalid country code, using default red flag');
+            if (!this.countryCode) {
+                console.warn('No country code provided, using default red flag');
                 return;
             }
             
-            // Use flag API to get country flag
-            const flagUrl = `https://flagcdn.com/w160/${this.countryCode.toLowerCase()}.png`;
-            
-            // First validate if the flag URL exists by creating an image element
-            const img = new Image();
-            
-            img.onload = () => {
-                // Flag exists, now load it as a texture
+            // Special case for pirate flag
+            if (this.countryCode.toLowerCase() === 'pirate') {
+                const pirateUrl = 'assets/flags/pirate.png';
                 const textureLoader = new THREE.TextureLoader();
                 
                 textureLoader.load(
-                    flagUrl,
+                    pirateUrl,
                     (texture) => {
                         // Store the loaded texture
                         this.flagTexture = texture;
@@ -151,20 +152,54 @@ class BoatModel {
                     },
                     undefined,
                     (error) => {
-                        console.error('Error loading flag texture:', error);
+                        console.error('Error loading pirate flag texture:', error);
                         this.flagTexture = null;
                     }
                 );
-            };
+                return;
+            }
             
-            img.onerror = () => {
-                console.warn(`Flag not found for country code: ${this.countryCode}, using default red flag`);
+            // Use flag API to get country flag if it's a 2-letter country code
+            if (this.countryCode.length === 2) {
+                const flagUrl = `https://flagcdn.com/w160/${this.countryCode.toLowerCase()}.png`;
+                
+                // First validate if the flag URL exists by creating an image element
+                const img = new Image();
+                
+                img.onload = () => {
+                    // Flag exists, now load it as a texture
+                    const textureLoader = new THREE.TextureLoader();
+                    
+                    textureLoader.load(
+                        flagUrl,
+                        (texture) => {
+                            // Store the loaded texture
+                            this.flagTexture = texture;
+                            
+                            // Update flag if it's already created
+                            if (this.flag) {
+                                this.updateFlagTexture();
+                            }
+                        },
+                        undefined,
+                        (error) => {
+                            console.error('Error loading flag texture:', error);
+                            this.flagTexture = null;
+                        }
+                    );
+                };
+                
+                img.onerror = () => {
+                    console.warn(`Flag not found for country code: ${this.countryCode}, using default red flag`);
+                    this.flagTexture = null;
+                };
+                
+                // Start loading the image
+                img.src = flagUrl;
+            } else {
+                console.warn(`Invalid country code: ${this.countryCode}, using default red flag`);
                 this.flagTexture = null;
-            };
-            
-            // Start loading the image
-            img.src = flagUrl;
-            
+            }
         } catch (error) {
             console.error('Error loading flag texture:', error);
             this.flagTexture = null;
@@ -693,6 +728,28 @@ class BoatModel {
         
         // Clear debug vectors (keeping this for compatibility)
         this.debugVectors = {};
+    }
+
+    /**
+     * Set a new flag code and update the flag texture
+     * @param {string} countryCode - Two-letter country code or 'pirate'
+     */
+    setFlagCode(countryCode) {
+        if (!countryCode) {
+            console.warn('Empty country code provided, ignoring flag update');
+            return;
+        }
+        
+        this.countryCode = countryCode;
+        this.loadFlagTexture();
+    }
+    
+    /**
+     * Get the current flag code
+     * @returns {string} The current flag code
+     */
+    getFlagCode() {
+        return this.countryCode;
     }
 }
 

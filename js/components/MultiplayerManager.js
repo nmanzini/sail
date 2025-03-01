@@ -25,6 +25,9 @@ class MultiplayerManager {
         // Connection status
         this.connected = false;
         
+        // Player's flag code
+        this.flagCode = null;
+        
         // Update rate limiting (don't send position updates too frequently)
         this.lastUpdateTime = 0;
         this.updateInterval = 0.1; // seconds between updates (100ms)
@@ -52,6 +55,15 @@ class MultiplayerManager {
     handleOpen() {
         console.log('Connected to multiplayer server');
         this.connected = true;
+        
+        // Get the player's flag code from the boat model
+        if (this.playerBoat && !this.flagCode) {
+            this.flagCode = this.playerBoat.getFlagCode();
+            console.log(`Using player flag: ${this.flagCode || 'none'}`);
+        }
+        
+        // Send flag information first
+        this.sendFlagUpdate();
         
         // Send initial boat data
         this.sendBoatUpdate();
@@ -156,6 +168,9 @@ class MultiplayerManager {
             deckColor: 0xD2B48C,  // Tan deck
             sailColor: 0xDCDCDC,  // Light gray sail
             
+            // Add flag code if provided
+            flagCode: boatData.flag || null,
+            
             // Flag this as a remote boat (not controlled by local physics)
             isRemoteBoat: true
         };
@@ -188,6 +203,11 @@ class MultiplayerManager {
         // Set sail angle if provided
         if (boatData.sailAngle !== undefined) {
             remoteBoat.setSailAngle(boatData.sailAngle);
+        }
+        
+        // Update flag if provided
+        if (boatData.flag !== undefined && boatData.flag !== null) {
+            remoteBoat.setFlagCode(boatData.flag);
         }
     }
     
@@ -237,7 +257,8 @@ class MultiplayerManager {
                 y: rotation.y,
                 z: rotation.z
             },
-            sailAngle: sailAngle
+            sailAngle: sailAngle,
+            flag: this.flagCode // Include flag information in regular updates
         };
         
         // Send the update
@@ -247,6 +268,40 @@ class MultiplayerManager {
         };
         
         this.socket.send(JSON.stringify(message));
+    }
+    
+    /**
+     * Set and send the player's flag code to the server
+     * @param {string} flagCode - Two-letter country code or 'pirate'
+     */
+    setFlagCode(flagCode) {
+        // Store the flag code
+        this.flagCode = flagCode;
+        
+        // Update the local boat's flag
+        if (this.playerBoat) {
+            this.playerBoat.setFlagCode(flagCode);
+        }
+        
+        // Send the flag update to the server if connected
+        if (this.connected) {
+            this.sendFlagUpdate();
+        }
+    }
+    
+    /**
+     * Send the flag code to the server
+     */
+    sendFlagUpdate() {
+        if (!this.connected) return;
+        
+        const message = {
+            type: 'flag_update',
+            flag_code: this.flagCode || ''
+        };
+        
+        this.socket.send(JSON.stringify(message));
+        console.log(`Sent flag update to server: ${this.flagCode || 'none'}`);
     }
     
     /**

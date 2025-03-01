@@ -37,6 +37,9 @@ recorded_paths = []
 # Directory for storing recordings
 RECORDINGS_DIR = "recordings"
 
+# Pirate flag identifier
+PIRATE_FLAG = "pirate"
+
 # Round-robin index for cycling through recordings
 current_recording_index = 0
 
@@ -61,6 +64,7 @@ async def register(websocket):
     connected_clients[client_id] = {
         "websocket": websocket,
         "boat_data": None,
+        "flag": None,  # Initialize flag as None
         "recording": [] if record_sessions else None,  # Initialize recording array if enabled
         "recording_start_time": time.time() if record_sessions else None  # Record start time
     }
@@ -70,7 +74,11 @@ async def register(websocket):
     other_boats = {}
     for cid, data in connected_clients.items():
         if cid != client_id and data["boat_data"]:
-            other_boats[cid] = data["boat_data"]
+            boat_data = data["boat_data"].copy()
+            # Add flag information if available
+            if data["flag"]:
+                boat_data["flag"] = data["flag"]
+            other_boats[cid] = boat_data
     
     # Add AI boats to the initial boats list
     for ai_id, ai_data in ai_boats.items():
@@ -259,7 +267,8 @@ def create_new_boat(direction):
             "speed": direction["speed"],
             "name": f"{direction['name']} Pirate",
             "color": direction["color"],
-            "sailAngle": 0
+            "sailAngle": 0,
+            "flag": PIRATE_FLAG  # Add pirate flag to AI boats
         },
         "direction": {
             "x": math.sin(movement_angle),  # x component of direction
@@ -305,7 +314,8 @@ def create_recorded_boat(recording_data):
             "sailAngle": first_movement.get("sailAngle", 0),
             "name": "Recorded Pirate",
             "color": boat_color,
-            "speed": 0  # Speed is determined by the recording
+            "speed": 0,  # Speed is determined by the recording
+            "flag": PIRATE_FLAG  # Add pirate flag to AI boats
         },
         "type": "recorded",  # Mark this as a recorded path boat
         "recording": recording_data["movements"],
@@ -562,6 +572,27 @@ async def handler(websocket):
                     
                     # Broadcast to all other clients
                     await broadcast_to_others(json.dumps(broadcast_data), client_id)
+                
+                elif data["type"] == "flag_update":
+                    # Store the client's flag information
+                    flag_code = data.get("flag_code", "")
+                    connected_clients[client_id]["flag"] = flag_code
+                    
+                    # Add flag info to boat data if it exists
+                    if connected_clients[client_id]["boat_data"]:
+                        connected_clients[client_id]["boat_data"]["flag"] = flag_code
+                        
+                        # Create message to broadcast
+                        broadcast_data = {
+                            "type": "boat_update",
+                            "client_id": client_id,
+                            "boat_data": connected_clients[client_id]["boat_data"]
+                        }
+                        
+                        # Broadcast to all other clients
+                        await broadcast_to_others(json.dumps(broadcast_data), client_id)
+                        
+                    logging.info(f"Client {client_id} updated flag to: {flag_code}")
                 
             except json.JSONDecodeError:
                 logging.error(f"Invalid JSON from client {client_id}")

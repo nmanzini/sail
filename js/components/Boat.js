@@ -174,6 +174,24 @@ class Boat {
     getDragForce() {
         return this.dynamics.getForces().dragForce;
     }
+    
+    /**
+     * Set the flag code for the boat
+     * @param {string} flagCode - Two-letter country code or 'pirate'
+     */
+    setFlagCode(flagCode) {
+        if (this.model) {
+            this.model.setFlagCode(flagCode);
+        }
+    }
+    
+    /**
+     * Get the current flag code
+     * @returns {string} The current flag code
+     */
+    getFlagCode() {
+        return this.model ? this.model.getFlagCode() : null;
+    }
 }
 
 export default Boat; 
