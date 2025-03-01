@@ -8,12 +8,19 @@ import time
 import uuid
 import statistics
 import datetime
+import random
+import argparse  # Added for command-line arguments
 
 # Configure logging
 logging.basicConfig(
     format="%(asctime)s %(message)s",
     level=logging.INFO,
 )
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser(description='Sailing game WebSocket server')
+parser.add_argument('-r', '--record', action='store_true', help='Enable recording of player movements')
+args = parser.parse_args()
 
 # Store connected clients and their boat data
 connected_clients = {}
@@ -24,15 +31,35 @@ ai_boats = {}
 # Track player positions for dynamic AI boat placement
 player_positions = []
 
+# Store player movement recordings for bot replays
+recorded_paths = []
+
+# Directory for storing recordings
+RECORDINGS_DIR = "recordings"
+
+# Ensure the recordings directory exists
+os.makedirs(RECORDINGS_DIR, exist_ok=True)
+
 # Debug flag - set to False to disable verbose logging
 debug_boats = False
+
+# Flag to enable recording of player sessions (set by command-line argument)
+record_sessions = args.record
+
+# Log recording mode status
+if record_sessions:
+    logging.info("Recording mode ENABLED - Player movements will be recorded")
+else:
+    logging.info("Recording mode DISABLED - Will use existing recordings for bots")
 
 async def register(websocket):
     """Register a new client connection."""
     client_id = id(websocket)
     connected_clients[client_id] = {
         "websocket": websocket,
-        "boat_data": None
+        "boat_data": None,
+        "recording": [] if record_sessions else None,  # Initialize recording array if enabled
+        "recording_start_time": time.time() if record_sessions else None  # Record start time
     }
     logging.info(f"Client {client_id} connected. Total clients: {len(connected_clients)}")
     
@@ -57,6 +84,16 @@ async def unregister(websocket):
     """Unregister a client connection."""
     client_id = id(websocket)
     if client_id in connected_clients:
+        # Save recording if we have sufficient movement data
+        if record_sessions and connected_clients[client_id]["recording"]:
+            recording = connected_clients[client_id]["recording"]
+            
+            # Only save if we have enough data points to be useful (at least 30 movements)
+            if len(recording) > 30:
+                save_recording(client_id, recording)
+            else:
+                logging.info(f"Not saving recording for client {client_id} - insufficient data points ({len(recording)})")
+        
         # Log player's last position
         if connected_clients[client_id]["boat_data"]:
             pos = connected_clients[client_id]["boat_data"]["position"]
@@ -76,6 +113,66 @@ async def unregister(websocket):
         })
         
         await broadcast_to_others(disconnection_message, client_id)
+
+def save_recording(client_id, recording):
+    """Save a player's movement recording to a JSON file."""
+    try:
+        # Create a unique filename with timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{RECORDINGS_DIR}/recording_{timestamp}_{client_id}.json"
+        
+        # Create the recording data structure
+        recording_data = {
+            "client_id": client_id,
+            "timestamp": timestamp,
+            "movements": recording
+        }
+        
+        # Save to file
+        with open(filename, 'w') as f:
+            json.dump(recording_data, f, indent=2)
+        
+        logging.info(f"Saved recording with {len(recording)} movements to {filename}")
+        
+        # Add to available recordings for bots to use
+        global recorded_paths
+        recorded_paths.append(recording_data)
+        
+    except Exception as e:
+        logging.error(f"Error saving recording: {e}")
+
+def load_recordings():
+    """Load all available recordings from the recordings directory."""
+    global recorded_paths
+    try:
+        # Clear existing recordings
+        recorded_paths = []
+        
+        # Check if directory exists
+        if not os.path.exists(RECORDINGS_DIR):
+            logging.info(f"Recordings directory does not exist. No recordings loaded.")
+            return
+        
+        # List all JSON files in the recordings directory
+        files = [f for f in os.listdir(RECORDINGS_DIR) if f.endswith('.json')]
+        
+        if not files:
+            logging.info("No recording files found.")
+            return
+        
+        # Load each file
+        for file in files:
+            try:
+                with open(os.path.join(RECORDINGS_DIR, file), 'r') as f:
+                    recording_data = json.load(f)
+                    recorded_paths.append(recording_data)
+                    logging.info(f"Loaded recording {file} with {len(recording_data['movements'])} movements")
+            except Exception as e:
+                logging.error(f"Error loading recording {file}: {e}")
+        
+        logging.info(f"Loaded {len(recorded_paths)} recordings for bot replays")
+    except Exception as e:
+        logging.error(f"Error loading recordings: {e}")
 
 def update_player_position_list(log_positions=False):
     """Update the list of player positions for AI boat placement."""
@@ -128,19 +225,31 @@ async def broadcast_to_others(message, sender_id):
 
 def create_ai_boats():
     """Create initial AI-controlled boats."""
-    # Center position for boats to start from
-    center = {"x": 60, "y": 0}  # Middle of the observed player path
+    # First try to load any existing recordings
+    load_recordings()
     
-    # We'll start with 2 boats (one in each direction) and spawn more over time
-    directions = [
-        {"name": "Eastbound", "angle": math.pi/2, "color": "#2F4F4F", "speed": 5},
-        {"name": "Westbound", "angle": 3*math.pi/2, "color": "#006400", "speed": 4.8}
-    ]
-    
-    for direction in directions:
-        create_new_boat(direction)
-    
-    logging.info(f"Created initial AI boats sailing east and west from center ({center['x']}, {center['y']})")
+    # If we have recorded paths, use them for initial boats
+    if recorded_paths:
+        # Use up to 2 different recorded paths for initial boats
+        for i in range(min(2, len(recorded_paths))):
+            create_recorded_boat(recorded_paths[i])
+        
+        logging.info(f"Created initial AI boats using recorded paths")
+    else:
+        # Fallback to original method if no recordings available
+        # Center position for boats to start from
+        center = {"x": 60, "y": 0}  # Middle of the observed player path
+        
+        # We'll start with 2 boats (one in each direction) and spawn more over time
+        directions = [
+            {"name": "Eastbound", "angle": math.pi/2, "color": "#2F4F4F", "speed": 5},
+            {"name": "Westbound", "angle": 3*math.pi/2, "color": "#006400", "speed": 4.8}
+        ]
+        
+        for direction in directions:
+            create_new_boat(direction)
+        
+        logging.info(f"Created initial AI boats sailing east and west from center ({center['x']}, {center['y']})")
 
 def create_new_boat(direction):
     """Create a new AI boat with the specified direction."""
@@ -169,9 +278,52 @@ def create_new_boat(direction):
         "start_position": {"x": center["x"], "z": center["y"]},
         "distance": 0,
         "max_distance": 600,  # Increased distance before resetting (hundreds of units away)
-        "created_at": time.time()  # Add creation timestamp to track boat age
+        "created_at": time.time(),  # Add creation timestamp to track boat age
+        "type": "linear",  # Mark this as a linear path boat
     }
     
+    return boat_id
+
+def create_recorded_boat(recording_data):
+    """Create a new AI boat that follows a recorded player path."""
+    boat_id = f"pirate_{uuid.uuid4()}"
+    
+    # Get first movement for initial position and rotation
+    if not recording_data["movements"]:
+        logging.error("Cannot create recorded boat: no movements in recording")
+        return None
+    
+    first_movement = recording_data["movements"][0]
+    
+    # Choose a random color for this boat
+    colors = ["#8B4513", "#006400", "#2F4F4F", "#800000", "#191970"]
+    boat_color = random.choice(colors)
+    
+    ai_boats[boat_id] = {
+        "boat_data": {
+            "position": {
+                "x": first_movement["position"]["x"],
+                "y": first_movement["position"]["y"],
+                "z": first_movement["position"]["z"]
+            },
+            "rotation": {
+                "x": first_movement["rotation"]["x"],
+                "y": first_movement["rotation"]["y"],
+                "z": first_movement["rotation"]["z"]
+            },
+            "sailAngle": first_movement.get("sailAngle", 0),
+            "name": "Recorded Pirate",
+            "color": boat_color,
+            "speed": 0  # Speed is determined by the recording
+        },
+        "type": "recorded",  # Mark this as a recorded path boat
+        "recording": recording_data["movements"],
+        "current_index": 0,
+        "last_update_time": time.time(),
+        "loop": False  # Changed to False - Don't loop the recording when it ends
+    }
+    
+    logging.info(f"Created new recorded boat {boat_id} with {len(recording_data['movements'])} movements")
     return boat_id
 
 async def spawn_boats_over_time():
@@ -179,7 +331,7 @@ async def spawn_boats_over_time():
     spawn_interval = 30  # Spawn a new boat every 30 seconds
     target_boats = 3  # Target number of boats
     
-    # Direction templates for new boats
+    # Direction templates for new boats (used as fallback if no recordings)
     directions = [
         {"name": "Eastbound", "angle": math.pi/2, "color": "#2F4F4F", "speed": 5},
         {"name": "Westbound", "angle": 3*math.pi/2, "color": "#006400", "speed": 4.8}
@@ -195,28 +347,39 @@ async def spawn_boats_over_time():
         try:
             await asyncio.sleep(spawn_interval)
             
-            # Generate additional boats up to target_boats
+            # Only spawn if we're under the target number
             if len(ai_boats) < target_boats:
                 try:
-                    # Get the next direction (alternating between east and west)
-                    direction = directions[next_direction_index]
+                    boat_id = None
                     
-                    # Toggle between 0 (Eastbound) and 1 (Westbound) for strict alternation
-                    next_direction_index = 1 if next_direction_index == 0 else 0
+                    # Prefer using recorded paths if available and not in recording mode
+                    if recorded_paths and not record_sessions:
+                        # Choose a random recording
+                        recording = random.choice(recorded_paths)
+                        boat_id = create_recorded_boat(recording)
+                        logging.info(f"Spawned new recorded path pirate (Total: {len(ai_boats)}/{target_boats})")
+                    else:
+                        # In recording mode or no recordings available, use linear movement
+                        # Get the next direction (alternating between east and west)
+                        direction = directions[next_direction_index]
+                        
+                        # Toggle between 0 (Eastbound) and 1 (Westbound) for strict alternation
+                        next_direction_index = 1 if next_direction_index == 0 else 0
+                        
+                        # Create a new boat and log it
+                        boat_id = create_new_boat(direction)
+                        logging.info(f"Spawned new {direction['name']} pirate (Total: {len(ai_boats)}/{target_boats})")
                     
-                    # Create a new boat and log it
-                    boat_id = create_new_boat(direction)
-                    logging.info(f"Spawned new {direction['name']} pirate (Total: {len(ai_boats)}/{target_boats})")
-                    
-                    # Create initial boat data for new clients
-                    boat_data = {
-                        "type": "boat_update",
-                        "client_id": boat_id,
-                        "boat_data": ai_boats[boat_id]["boat_data"]
-                    }
-                    
-                    # Broadcast the new boat to all clients
-                    await broadcast_to_all(json.dumps(boat_data))
+                    if boat_id:
+                        # Create initial boat data for new clients
+                        boat_data = {
+                            "type": "boat_update",
+                            "client_id": boat_id,
+                            "boat_data": ai_boats[boat_id]["boat_data"]
+                        }
+                        
+                        # Broadcast the new boat to all clients
+                        await broadcast_to_all(json.dumps(boat_data))
                 except Exception as e:
                     logging.error(f"Error creating new boat: {e}")
         except Exception as e:
@@ -225,36 +388,119 @@ async def spawn_boats_over_time():
             await asyncio.sleep(spawn_interval)
 
 async def update_ai_boats():
-    """Update positions of AI boats sailing in straight lines."""
+    """Update positions of AI boats."""
     while True:
         try:
+            current_time = time.time()
+            
             for ai_id, ai_data in list(ai_boats.items()):
                 try:
-                    # Get current position and direction
-                    current_x = ai_data["boat_data"]["position"]["x"]
-                    current_z = ai_data["boat_data"]["position"]["z"]
-                    direction_x = ai_data["direction"]["x"]
-                    direction_z = ai_data["direction"]["z"]
-                    speed = ai_data["speed"]
+                    # Handle different types of boat movement
+                    if ai_data["type"] == "recorded":
+                        # Handle recorded path movement
+                        movements = ai_data["recording"]
+                        current_index = ai_data["current_index"]
+                        
+                        # If we've reached the end of the recording
+                        if current_index >= len(movements) - 1:
+                            if ai_data["loop"]:
+                                # Reset to beginning if looping
+                                ai_data["current_index"] = 0
+                                current_index = 0
+                                logging.info(f"Recorded boat {ai_id} reached end of recording, looping")
+                            else:
+                                # Remove the boat if not looping
+                                logging.info(f"Recorded boat {ai_id} reached end of recording, removing")
+                                del ai_boats[ai_id]
+                                continue
+                        
+                        # Get current and next movement
+                        current_movement = movements[current_index]
+                        next_index = current_index + 1
+                        
+                        # If we're at the end of the recording and looping, next is the first movement
+                        if next_index >= len(movements) and ai_data["loop"]:
+                            next_index = 0
+                        
+                        # If we have a next movement to interpolate to
+                        if next_index < len(movements):
+                            next_movement = movements[next_index]
+                            
+                            # Calculate position by interpolating between current and next
+                            # The original recording may have variable frame rates, so we use
+                            # a fixed interpolation speed
+                            
+                            # Get current position
+                            current_pos = ai_data["boat_data"]["position"]
+                            next_pos = next_movement["position"]
+                            
+                            # Calculate direction vector
+                            dir_x = next_pos["x"] - current_pos["x"]
+                            dir_y = next_pos["y"] - current_pos["y"]
+                            dir_z = next_pos["z"] - current_pos["z"]
+                            
+                            # Calculate distance
+                            distance = math.sqrt(dir_x**2 + dir_y**2 + dir_z**2)
+                            
+                            # Calculate interpolation speed (units per second)
+                            speed = 5  # Fixed speed for smoother movement
+                            
+                            # If we're close enough to the next point, advance to it
+                            if distance < 0.5 or speed * 0.1 >= distance:
+                                ai_data["current_index"] += 1
+                                
+                                # Update position, rotation, and sail angle
+                                ai_data["boat_data"]["position"] = next_movement["position"]
+                                ai_data["boat_data"]["rotation"] = next_movement["rotation"]
+                                if "sailAngle" in next_movement:
+                                    ai_data["boat_data"]["sailAngle"] = next_movement["sailAngle"]
+                            else:
+                                # Normalize direction vector
+                                if distance > 0:
+                                    dir_x /= distance
+                                    dir_y /= distance
+                                    dir_z /= distance
+                                
+                                # Calculate new position
+                                ai_data["boat_data"]["position"]["x"] += dir_x * speed * 0.1
+                                ai_data["boat_data"]["position"]["y"] += dir_y * speed * 0.1
+                                ai_data["boat_data"]["position"]["z"] += dir_z * speed * 0.1
+                                
+                                # Interpolate rotation as well
+                                # For simplicity, we just use the next rotation value directly
+                                ai_data["boat_data"]["rotation"] = next_movement["rotation"]
+                                
+                                # Interpolate sail angle if available
+                                if "sailAngle" in next_movement:
+                                    ai_data["boat_data"]["sailAngle"] = next_movement["sailAngle"]
                     
-                    # Calculate new position (straight line movement)
-                    new_x = current_x + direction_x * speed * 0.1  # Scale speed by time factor
-                    new_z = current_z + direction_z * speed * 0.1
-                    
-                    # Update distance traveled
-                    ai_data["distance"] += speed * 0.1
-                    
-                    # Check if boat has reached max distance
-                    if ai_data["distance"] >= ai_data["max_distance"]:
-                        # Reset to start position
-                        new_x = ai_data["start_position"]["x"]
-                        new_z = ai_data["start_position"]["z"]
-                        ai_data["distance"] = 0
-                        logging.info(f"Pirate {ai_id} ({ai_data['boat_data']['name']}) reached maximum distance and reset to start position")
-                    
-                    # Update boat data
-                    ai_data["boat_data"]["position"]["x"] = new_x
-                    ai_data["boat_data"]["position"]["z"] = new_z
+                    elif ai_data["type"] == "linear":
+                        # Standard linear movement for non-recorded boats
+                        # Get current position and direction
+                        current_x = ai_data["boat_data"]["position"]["x"]
+                        current_z = ai_data["boat_data"]["position"]["z"]
+                        direction_x = ai_data["direction"]["x"]
+                        direction_z = ai_data["direction"]["z"]
+                        speed = ai_data["speed"]
+                        
+                        # Calculate new position (straight line movement)
+                        new_x = current_x + direction_x * speed * 0.1  # Scale speed by time factor
+                        new_z = current_z + direction_z * speed * 0.1
+                        
+                        # Update distance traveled
+                        ai_data["distance"] += speed * 0.1
+                        
+                        # Check if boat has reached max distance
+                        if ai_data["distance"] >= ai_data["max_distance"]:
+                            # Reset to start position
+                            new_x = ai_data["start_position"]["x"]
+                            new_z = ai_data["start_position"]["z"]
+                            ai_data["distance"] = 0
+                            logging.info(f"Pirate {ai_id} ({ai_data['boat_data']['name']}) reached maximum distance and reset to start position")
+                        
+                        # Update boat data
+                        ai_data["boat_data"]["position"]["x"] = new_x
+                        ai_data["boat_data"]["position"]["z"] = new_z
                     
                     # Broadcast updated boat position to all clients
                     broadcast_data = {
@@ -303,6 +549,24 @@ async def handler(websocket):
                 if data["type"] == "boat_update":
                     # Store the client's boat data
                     connected_clients[client_id]["boat_data"] = data["boat_data"]
+                    
+                    # Record this movement if recording is enabled
+                    if record_sessions and "recording" in connected_clients[client_id]:
+                        # Add timestamp relative to start time
+                        timestamp = time.time() - connected_clients[client_id]["recording_start_time"]
+                        
+                        # Add this position to the recording with a timestamp
+                        movement = {
+                            "timestamp": timestamp,
+                            "position": data["boat_data"]["position"],
+                            "rotation": data["boat_data"]["rotation"]
+                        }
+                        
+                        # Add sail angle if available
+                        if "sailAngle" in data["boat_data"]:
+                            movement["sailAngle"] = data["boat_data"]["sailAngle"]
+                            
+                        connected_clients[client_id]["recording"].append(movement)
                     
                     # Log boat position occasionally (not every update to avoid log spam)
                     if debug_boats and update_count % 100 == 0 and "position" in data["boat_data"]:
