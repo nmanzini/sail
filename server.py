@@ -37,6 +37,9 @@ recorded_paths = []
 # Directory for storing recordings
 RECORDINGS_DIR = "recordings"
 
+# Round-robin index for cycling through recordings
+current_recording_index = 0
+
 # Ensure the recordings directory exists
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
@@ -236,20 +239,8 @@ def create_ai_boats():
         
         logging.info(f"Created initial AI boats using recorded paths")
     else:
-        # Fallback to original method if no recordings available
-        # Center position for boats to start from
-        center = {"x": 60, "y": 0}  # Middle of the observed player path
-        
-        # We'll start with 2 boats (one in each direction) and spawn more over time
-        directions = [
-            {"name": "Eastbound", "angle": math.pi/2, "color": "#2F4F4F", "speed": 5},
-            {"name": "Westbound", "angle": 3*math.pi/2, "color": "#006400", "speed": 4.8}
-        ]
-        
-        for direction in directions:
-            create_new_boat(direction)
-        
-        logging.info(f"Created initial AI boats sailing east and west from center ({center['x']}, {center['y']})")
+        # If no recordings available, log a message but don't create default boats
+        logging.info("No recorded paths available for AI boats. Run with -r flag to create recordings.")
 
 def create_new_boat(direction):
     """Create a new AI boat with the specified direction."""
@@ -327,18 +318,10 @@ def create_recorded_boat(recording_data):
     return boat_id
 
 async def spawn_boats_over_time():
-    """Spawn new boats periodically, replacing old ones to maintain a constant number."""
+    """Spawn new boats periodically from recorded paths using round-robin selection."""
+    global current_recording_index
     spawn_interval = 30  # Spawn a new boat every 30 seconds
     target_boats = 3  # Target number of boats
-    
-    # Direction templates for new boats (used as fallback if no recordings)
-    directions = [
-        {"name": "Eastbound", "angle": math.pi/2, "color": "#2F4F4F", "speed": 5},
-        {"name": "Westbound", "angle": 3*math.pi/2, "color": "#006400", "speed": 4.8}
-    ]
-    
-    # Start with eastbound (0)
-    next_direction_index = 0  
     
     # Wait a bit before starting to spawn boats
     await asyncio.sleep(spawn_interval * 2)
@@ -347,41 +330,35 @@ async def spawn_boats_over_time():
         try:
             await asyncio.sleep(spawn_interval)
             
-            # Only spawn if we're under the target number
-            if len(ai_boats) < target_boats:
-                try:
-                    boat_id = None
-                    
-                    # Prefer using recorded paths if available and not in recording mode
-                    if recorded_paths and not record_sessions:
-                        # Choose a random recording
-                        recording = random.choice(recorded_paths)
+            # Only spawn if we have recordings and we're not in recording mode
+            if recorded_paths and not record_sessions:
+                # Use round-robin selection of recordings
+                if current_recording_index >= len(recorded_paths):
+                    current_recording_index = 0
+                
+                recording = recorded_paths[current_recording_index]
+                current_recording_index += 1
+                
+                # Only create a new boat if we're under the target limit
+                if len(ai_boats) < target_boats:
+                    try:
                         boat_id = create_recorded_boat(recording)
-                        logging.info(f"Spawned new recorded path pirate (Total: {len(ai_boats)}/{target_boats})")
-                    else:
-                        # In recording mode or no recordings available, use linear movement
-                        # Get the next direction (alternating between east and west)
-                        direction = directions[next_direction_index]
+                        logging.info(f"Spawned new recorded path pirate ({current_recording_index-1}/{len(recorded_paths)}) (Total: {len(ai_boats)}/{target_boats})")
                         
-                        # Toggle between 0 (Eastbound) and 1 (Westbound) for strict alternation
-                        next_direction_index = 1 if next_direction_index == 0 else 0
-                        
-                        # Create a new boat and log it
-                        boat_id = create_new_boat(direction)
-                        logging.info(f"Spawned new {direction['name']} pirate (Total: {len(ai_boats)}/{target_boats})")
-                    
-                    if boat_id:
-                        # Create initial boat data for new clients
-                        boat_data = {
-                            "type": "boat_update",
-                            "client_id": boat_id,
-                            "boat_data": ai_boats[boat_id]["boat_data"]
-                        }
-                        
-                        # Broadcast the new boat to all clients
-                        await broadcast_to_all(json.dumps(boat_data))
-                except Exception as e:
-                    logging.error(f"Error creating new boat: {e}")
+                        if boat_id:
+                            # Create initial boat data for new clients
+                            boat_data = {
+                                "type": "boat_update",
+                                "client_id": boat_id,
+                                "boat_data": ai_boats[boat_id]["boat_data"]
+                            }
+                            
+                            # Broadcast the new boat to all clients
+                            await broadcast_to_all(json.dumps(boat_data))
+                    except Exception as e:
+                        logging.error(f"Error creating new boat: {e}")
+                else:
+                    logging.info(f"Skipped spawning boat: at maximum ({len(ai_boats)}/{target_boats})")
         except Exception as e:
             logging.error(f"Critical error in spawn_boats_over_time: {str(e)}")
             # Sleep a bit before retrying to avoid tight error loops
