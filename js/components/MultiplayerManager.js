@@ -146,10 +146,10 @@ class MultiplayerManager {
         // Uses the same Boat class but with different visual options
         const boatOptions = {
             // Physics options (largely irrelevant for remote boats)
-            mass: 1000,
+            mass: 75,  // Halved from 150 to maintain proportional mass ratio
             dragCoefficient: 0.05,
             sailEfficiency: 1.0,
-            rudderEfficiency: 40.0,
+            rudderEfficiency: 3.0,  // Halved from 6.0 to maintain proportional ratio
             
             // Visual options - use a different color to distinguish from player
             hullColor: 0x8B4513,  // Brown hull 

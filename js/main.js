@@ -79,13 +79,13 @@ class Sail {
         // Create boat with options
         const boatOptions = {
             // Physics options
-            mass: 200,             // Further reduced from 400 to 200
-            dragCoefficient: 0.12, // Increased from 0.08 to 0.12
-            sailEfficiency: 1.5,   // Increased from 1.2 to 1.5
-            rudderEfficiency: 12.5, // Reduced from 50.0 to 12.5 (4x reduction)
-            inertia: 100,          // Further reduced from 200 to 100
-            heelFactor: 0.12,      // Increased from 0.08 to 0.12
-            heelRecoveryRate: 0.7  // Increased from 0.5 to 0.7
+            mass: 15,              // Halved from 30 to 15 for extreme responsiveness
+            dragCoefficient: 0.12, // Leaving unchanged as it affects deceleration
+            sailEfficiency: 1.5,   // Leaving unchanged
+            rudderEfficiency: 1.25, // Halved from 2.5 to 1.25 to account for lower mass
+            inertia: 9,            // Halved from 18 to 9 for extremely quick turning
+            heelFactor: 0.12,      // Leaving unchanged
+            heelRecoveryRate: 0.7  // Leaving unchanged
             
             // Using all default visual options from BoatModel
         };
