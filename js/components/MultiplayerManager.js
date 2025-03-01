@@ -278,6 +278,14 @@ class MultiplayerManager {
             this.socket.close();
         }
     }
+    
+    /**
+     * Check if currently connected to the multiplayer server
+     * @returns {boolean} Connection status
+     */
+    isConnected() {
+        return this.connected;
+    }
 }
 
 export default MultiplayerManager;
