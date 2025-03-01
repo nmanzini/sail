@@ -185,9 +185,10 @@ async def spawn_boats_over_time():
         {"name": "Westbound", "angle": 3*math.pi/2, "color": "#006400", "speed": 4.8}
     ]
     
-    direction_index = 0  # Alternate between directions
+    # Start with eastbound (0)
+    next_direction_index = 0  
     
-    # Wait a bit before starting to replace boats
+    # Wait a bit before starting to spawn boats
     await asyncio.sleep(spawn_interval * 2)
     
     while True:
@@ -197,9 +198,11 @@ async def spawn_boats_over_time():
             # Generate additional boats up to target_boats
             if len(ai_boats) < target_boats:
                 try:
-                    # Choose the next direction (alternating)
-                    direction = directions[direction_index % len(directions)]
-                    direction_index += 1
+                    # Get the next direction (alternating between east and west)
+                    direction = directions[next_direction_index]
+                    
+                    # Toggle between 0 (Eastbound) and 1 (Westbound) for strict alternation
+                    next_direction_index = 1 if next_direction_index == 0 else 0
                     
                     # Create a new boat and log it
                     boat_id = create_new_boat(direction)
