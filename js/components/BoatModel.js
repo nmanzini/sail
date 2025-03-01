@@ -10,6 +10,9 @@ class BoatModel {
         // Initialize boat dimensions
         this.initDimensions(options);
         
+        // Determine user's country flag
+        this.determineCountryFlag();
+        
         // Create the boat 3D model
         this.createBoatModel();
         
@@ -40,6 +43,155 @@ class BoatModel {
         // Debug vectors (keeping properties but not using them)
         this.debugVectors = {};
         this.debugMode = true; // Set to true by default
+        
+        // Flag texture information
+        this.flagTexture = null;
+        this.countryCode = null;
+    }
+    
+    /**
+     * Determines the user's country flag based on browser language
+     */
+    determineCountryFlag() {
+        try {
+            // Get browser language
+            const language = navigator.language || navigator.userLanguage || '';
+            
+            // Extract country code from language (e.g., "en-US" -> "US")
+            this.countryCode = language.split('-')[1];
+            
+            // If no country code found, use language as fallback with mapping
+            if (!this.countryCode && language.length >= 2) {
+                const langCode = language.substring(0, 2).toLowerCase();
+                this.countryCode = this.mapLanguageToCountry(langCode);
+            }
+            
+            console.log(`Detected language: ${language}, Country code: ${this.countryCode}`);
+            
+            // If we have a country code, load the flag texture
+            if (this.countryCode) {
+                this.loadFlagTexture();
+            }
+        } catch (error) {
+            console.error('Error determining country flag:', error);
+            this.countryCode = null;
+        }
+    }
+    
+    /**
+     * Maps language codes to country codes for common languages
+     * @param {string} langCode - The language code (2 characters)
+     * @returns {string} The corresponding country code
+     */
+    mapLanguageToCountry(langCode) {
+        // Common language to country mappings
+        const languageMap = {
+            'en': 'GB', // English -> Great Britain
+            'es': 'ES', // Spanish -> Spain
+            'fr': 'FR', // French -> France
+            'de': 'DE', // German -> Germany
+            'it': 'IT', // Italian -> Italy
+            'pt': 'PT', // Portuguese -> Portugal
+            'ru': 'RU', // Russian -> Russia
+            'zh': 'CN', // Chinese -> China
+            'ja': 'JP', // Japanese -> Japan
+            'ko': 'KR', // Korean -> South Korea
+            'ar': 'SA', // Arabic -> Saudi Arabia
+            'hi': 'IN', // Hindi -> India
+            'nl': 'NL', // Dutch -> Netherlands
+            'sv': 'SE', // Swedish -> Sweden
+            'fi': 'FI', // Finnish -> Finland
+            'da': 'DK', // Danish -> Denmark
+            'no': 'NO', // Norwegian -> Norway
+            'pl': 'PL', // Polish -> Poland
+            'tr': 'TR', // Turkish -> Turkey
+            'cs': 'CZ', // Czech -> Czech Republic
+            'hu': 'HU', // Hungarian -> Hungary
+            'el': 'GR', // Greek -> Greece
+            'he': 'IL', // Hebrew -> Israel
+            'th': 'TH', // Thai -> Thailand
+            'vi': 'VN'  // Vietnamese -> Vietnam
+        };
+        
+        // Return the mapped country code or uppercase the language code as fallback
+        return languageMap[langCode] || langCode.toUpperCase();
+    }
+    
+    /**
+     * Loads the flag texture based on country code
+     */
+    loadFlagTexture() {
+        try {
+            // Check if country code is valid
+            if (!this.countryCode || this.countryCode.length !== 2) {
+                console.warn('Invalid country code, using default red flag');
+                return;
+            }
+            
+            // Use flag API to get country flag
+            const flagUrl = `https://flagcdn.com/w160/${this.countryCode.toLowerCase()}.png`;
+            
+            // First validate if the flag URL exists by creating an image element
+            const img = new Image();
+            
+            img.onload = () => {
+                // Flag exists, now load it as a texture
+                const textureLoader = new THREE.TextureLoader();
+                
+                textureLoader.load(
+                    flagUrl,
+                    (texture) => {
+                        // Store the loaded texture
+                        this.flagTexture = texture;
+                        
+                        // Update flag if it's already created
+                        if (this.flag) {
+                            this.updateFlagTexture();
+                        }
+                    },
+                    undefined,
+                    (error) => {
+                        console.error('Error loading flag texture:', error);
+                        this.flagTexture = null;
+                    }
+                );
+            };
+            
+            img.onerror = () => {
+                console.warn(`Flag not found for country code: ${this.countryCode}, using default red flag`);
+                this.flagTexture = null;
+            };
+            
+            // Start loading the image
+            img.src = flagUrl;
+            
+        } catch (error) {
+            console.error('Error loading flag texture:', error);
+            this.flagTexture = null;
+        }
+    }
+    
+    /**
+     * Updates the flag with the loaded texture
+     */
+    updateFlagTexture() {
+        if (!this.flag || !this.flagTexture) return;
+        
+        // Find the flag mesh in the flag group
+        this.flag.traverse((child) => {
+            if (child.isMesh) {
+                // Create new material with the flag texture
+                const flagMaterial = new THREE.MeshLambertMaterial({
+                    map: this.flagTexture,
+                    side: THREE.DoubleSide,
+                    transparent: false,
+                    opacity: 1.0
+                });
+                
+                // Apply the new material
+                child.material = flagMaterial;
+            }
+        });
     }
     
     /**
@@ -180,12 +332,26 @@ class BoatModel {
         
         // Create flag shape
         const flagGeometry = new THREE.PlaneGeometry(this.flagWidth, this.flagHeight);
-        const flagMaterial = new THREE.MeshLambertMaterial({ 
-            color: 0xff0000, 
-            side: THREE.DoubleSide,
-            transparent: false,
-            opacity: 1.0
-        });
+        
+        // Create flag material - use texture if available, otherwise use red color
+        let flagMaterial;
+        if (this.flagTexture) {
+            // Use the loaded country flag texture
+            flagMaterial = new THREE.MeshLambertMaterial({ 
+                map: this.flagTexture,
+                side: THREE.DoubleSide,
+                transparent: false,
+                opacity: 1.0
+            });
+        } else {
+            // Default to red color
+            flagMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xff0000, 
+                side: THREE.DoubleSide,
+                transparent: false,
+                opacity: 1.0
+            });
+        }
         
         const flagMesh = new THREE.Mesh(flagGeometry, flagMaterial);
         
