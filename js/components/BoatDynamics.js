@@ -27,13 +27,13 @@ class BoatDynamics {
         this.heelAngle = 0;
         
         // Physics properties - use options with defaults
-        this.mass = options.mass || 1000;
-        this.dragCoefficient = options.dragCoefficient || 0.05;
-        this.sailEfficiency = options.sailEfficiency || 1.0;
-        this.rudderEfficiency = options.rudderEfficiency || 40.0;
-        this.inertia = options.inertia || 500;
-        this.heelFactor = options.heelFactor || 0.08;
-        this.heelRecoveryRate = options.heelRecoveryRate || 0.5;
+        this.mass = options.mass || 200;
+        this.dragCoefficient = options.dragCoefficient || 0.12;
+        this.sailEfficiency = options.sailEfficiency || 1.5;
+        this.rudderEfficiency = options.rudderEfficiency || 12.5;
+        this.inertia = options.inertia || 100;
+        this.heelFactor = options.heelFactor || 0.12;
+        this.heelRecoveryRate = options.heelRecoveryRate || 0.7;
         
         // Limits
         this.maxSailAngle = Math.PI / 2;
