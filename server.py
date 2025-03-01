@@ -7,6 +7,7 @@ import math
 import time
 import uuid
 import statistics
+import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -190,94 +191,126 @@ async def spawn_boats_over_time():
     await asyncio.sleep(spawn_interval * 2)
     
     while True:
-        await asyncio.sleep(spawn_interval)
-        
-        # Always generate a new boat and remove an old one
-        if len(ai_boats) > 0:
-            # Find the oldest boat to remove
-            oldest_boat_id = None
-            oldest_time = float('inf')
+        try:
+            await asyncio.sleep(spawn_interval)
             
-            for boat_id, boat_data in ai_boats.items():
-                if boat_data.get("created_at", float('inf')) < oldest_time:
-                    oldest_time = boat_data.get("created_at", float('inf'))
-                    oldest_boat_id = boat_id
+            # Always generate a new boat and remove an old one
+            if len(ai_boats) > 0:
+                try:
+                    # Find the oldest boat to remove
+                    oldest_boat_id = None
+                    oldest_time = float('inf')
+                    
+                    for boat_id, boat_data in list(ai_boats.items()):
+                        if boat_data.get("created_at", float('inf')) < oldest_time:
+                            oldest_time = boat_data.get("created_at", float('inf'))
+                            oldest_boat_id = boat_id
+                    
+                    if oldest_boat_id:
+                        # Remove the oldest boat
+                        boat_name = ai_boats[oldest_boat_id]["boat_data"]["name"]
+                        del ai_boats[oldest_boat_id]
+                        
+                        # Notify clients that this boat is gone
+                        disconnection_message = json.dumps({
+                            "type": "boat_disconnected",
+                            "client_id": oldest_boat_id
+                        })
+                        await broadcast_to_all(disconnection_message)
+                        
+                        logging.info(f"Removed oldest boat: {boat_name} (ID: {oldest_boat_id})")
+                except Exception as e:
+                    logging.error(f"Error removing oldest boat: {e}")
             
-            if oldest_boat_id:
-                # Remove the oldest boat
-                boat_name = ai_boats[oldest_boat_id]["boat_data"]["name"]
-                del ai_boats[oldest_boat_id]
-                
-                # Notify clients that this boat is gone
-                disconnection_message = json.dumps({
-                    "type": "boat_disconnected",
-                    "client_id": oldest_boat_id
-                })
-                await broadcast_to_all(disconnection_message)
-                
-                logging.info(f"Removed oldest boat: {boat_name} (ID: {oldest_boat_id})")
-        
-        # Always generate a new boat if we haven't reached the target
-        if len(ai_boats) < target_boats:
-            # Choose the next direction (alternating)
-            direction = directions[direction_index % len(directions)]
-            direction_index += 1
-            
-            # Create a new boat and log it
-            boat_id = create_new_boat(direction)
-            logging.info(f"Spawned new {direction['name']} pirate (Total: {len(ai_boats)}/{target_boats})")
-            
-            # Create initial boat data for new clients
-            boat_data = {
-                "type": "boat_update",
-                "client_id": boat_id,
-                "boat_data": ai_boats[boat_id]["boat_data"]
-            }
-            
-            # Broadcast the new boat to all clients
-            await broadcast_to_all(json.dumps(boat_data))
+            # Always generate a new boat if we haven't reached the target
+            if len(ai_boats) < target_boats:
+                try:
+                    # Choose the next direction (alternating)
+                    direction = directions[direction_index % len(directions)]
+                    direction_index += 1
+                    
+                    # Create a new boat and log it
+                    boat_id = create_new_boat(direction)
+                    logging.info(f"Spawned new {direction['name']} pirate (Total: {len(ai_boats)}/{target_boats})")
+                    
+                    # Create initial boat data for new clients
+                    boat_data = {
+                        "type": "boat_update",
+                        "client_id": boat_id,
+                        "boat_data": ai_boats[boat_id]["boat_data"]
+                    }
+                    
+                    # Broadcast the new boat to all clients
+                    await broadcast_to_all(json.dumps(boat_data))
+                except Exception as e:
+                    logging.error(f"Error creating new boat: {e}")
+        except Exception as e:
+            logging.error(f"Critical error in spawn_boats_over_time: {str(e)}")
+            # Sleep a bit before retrying to avoid tight error loops
+            await asyncio.sleep(spawn_interval)
 
 async def update_ai_boats():
     """Update positions of AI boats sailing in straight lines."""
     while True:
-        for ai_id, ai_data in ai_boats.items():
-            # Get current position and direction
-            current_x = ai_data["boat_data"]["position"]["x"]
-            current_z = ai_data["boat_data"]["position"]["z"]
-            direction_x = ai_data["direction"]["x"]
-            direction_z = ai_data["direction"]["z"]
-            speed = ai_data["speed"]
+        try:
+            for ai_id, ai_data in list(ai_boats.items()):
+                try:
+                    # Get current position and direction
+                    current_x = ai_data["boat_data"]["position"]["x"]
+                    current_z = ai_data["boat_data"]["position"]["z"]
+                    direction_x = ai_data["direction"]["x"]
+                    direction_z = ai_data["direction"]["z"]
+                    speed = ai_data["speed"]
+                    
+                    # Calculate new position (straight line movement)
+                    new_x = current_x + direction_x * speed * 0.1  # Scale speed by time factor
+                    new_z = current_z + direction_z * speed * 0.1
+                    
+                    # Update distance traveled
+                    ai_data["distance"] += speed * 0.1
+                    
+                    # Check if boat has reached max distance
+                    if ai_data["distance"] >= ai_data["max_distance"]:
+                        # Reset to start position
+                        new_x = ai_data["start_position"]["x"]
+                        new_z = ai_data["start_position"]["z"]
+                        ai_data["distance"] = 0
+                        logging.info(f"Pirate {ai_id} ({ai_data['boat_data']['name']}) reached maximum distance and reset to start position")
+                    
+                    # Update boat data
+                    ai_data["boat_data"]["position"]["x"] = new_x
+                    ai_data["boat_data"]["position"]["z"] = new_z
+                    
+                    # Broadcast updated boat position to all clients
+                    broadcast_data = {
+                        "type": "boat_update",
+                        "client_id": ai_id,
+                        "boat_data": ai_data["boat_data"]
+                    }
+                    
+                    await broadcast_to_all(json.dumps(broadcast_data))
+                except KeyError as e:
+                    logging.error(f"KeyError in update_ai_boats for boat {ai_id}: {e}")
+                except Exception as e:
+                    logging.error(f"Error processing boat {ai_id}: {e}")
             
-            # Calculate new position (straight line movement)
-            new_x = current_x + direction_x * speed * 0.1  # Scale speed by time factor
-            new_z = current_z + direction_z * speed * 0.1
-            
-            # Update distance traveled
-            ai_data["distance"] += speed * 0.1
-            
-            # Check if boat has reached max distance
-            if ai_data["distance"] >= ai_data["max_distance"]:
-                # Reset to start position
-                new_x = ai_data["start_position"]["x"]
-                new_z = ai_data["start_position"]["z"]
-                ai_data["distance"] = 0
-                logging.info(f"Pirate {ai_id} ({ai_data['boat_data']['name']}) reached maximum distance and reset to start position")
-            
-            # Update boat data
-            ai_data["boat_data"]["position"]["x"] = new_x
-            ai_data["boat_data"]["position"]["z"] = new_z
-            
-            # Broadcast updated boat position to all clients
-            broadcast_data = {
-                "type": "boat_update",
-                "client_id": ai_id,
-                "boat_data": ai_data["boat_data"]
-            }
-            
-            await broadcast_to_all(json.dumps(broadcast_data))
-        
-        # Update every 100ms
-        await asyncio.sleep(0.1)
+            # Update every 100ms
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            logging.error(f"Critical error in update_ai_boats main loop: {str(e)}")
+            # Sleep a bit longer before retrying to avoid tight error loops
+            await asyncio.sleep(1.0)
+
+async def heartbeat():
+    """Send regular heartbeat logs to keep the server active and monitor its health."""
+    while True:
+        try:
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            logging.info(f"Heartbeat - Server active - {now} - AI boats: {len(ai_boats)} - Clients: {len(connected_clients)}")
+            await asyncio.sleep(300)  # 5-minute heartbeat
+        except Exception as e:
+            logging.error(f"Error in heartbeat: {str(e)}")
+            await asyncio.sleep(300)  # Wait before retrying
 
 async def handler(websocket):
     """Handle a connection and dispatch messages."""
@@ -336,11 +369,26 @@ async def main():
     # Create initial AI boats
     create_ai_boats()
     
-    # Start AI boat update task
-    ai_boat_task = asyncio.create_task(update_ai_boats())
+    # Function to monitor and restart tasks if they fail
+    async def monitor_task(task_func, task_name):
+        while True:
+            try:
+                task = asyncio.create_task(task_func())
+                await task
+            except asyncio.CancelledError:
+                logging.info(f"{task_name} task was cancelled")
+                break
+            except Exception as e:
+                logging.error(f"{task_name} task failed with error: {str(e)}")
+                logging.info(f"Restarting {task_name} task in 5 seconds...")
+                await asyncio.sleep(5)
     
-    # Start boat spawning task
-    spawn_task = asyncio.create_task(spawn_boats_over_time())
+    # Start AI boat update and spawning tasks with monitoring
+    ai_boat_monitor = asyncio.create_task(monitor_task(update_ai_boats, "AI boat update"))
+    spawn_monitor = asyncio.create_task(monitor_task(spawn_boats_over_time, "Boat spawning"))
+    
+    # Start heartbeat task
+    heartbeat_monitor = asyncio.create_task(monitor_task(heartbeat, "Heartbeat"))
     
     async with websockets.serve(handler, host, port):
         await asyncio.Future()  # Run forever
