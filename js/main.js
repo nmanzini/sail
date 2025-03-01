@@ -27,7 +27,18 @@ class Sail {
         
         // Multiplayer server configuration
         this.multiplayerEnabled = false;
-        this.serverUrl = 'ws://localhost:8765';
+        
+        // Choose the appropriate WebSocket server URL based on the environment
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1' ||
+                            window.location.hostname === '';
+        
+        // Use local server when running locally, Heroku server when deployed
+        this.serverUrl = isLocalhost 
+            ? 'ws://localhost:8765' 
+            : 'wss://sail-server-eb8a39ba5a31.herokuapp.com';
+        
+        console.log(`Using WebSocket server: ${this.serverUrl}`);
         
         // Time tracking
         this.clock = new THREE.Clock();
