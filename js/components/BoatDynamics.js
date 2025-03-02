@@ -4,6 +4,9 @@ import * as THREE from 'three';
  * BoatDynamics class responsible for boat physics and state
  */
 class BoatDynamics {
+    // Static class configuration properties
+    static disableWindFromWrongSide = true;
+    
     constructor(world, options = {}) {
         this.world = world;
         
@@ -167,10 +170,13 @@ class BoatDynamics {
         // Positive means sail is on port/left side, negative means starboard/right side
         const sailSide = Math.sign(this.sailAngle);
         
-        // Sail directionality factor
-        // When windCrossSail.y and sailSide have opposite signs, wind is hitting the sail from the proper side
-        // When they have the same sign, force should be zero
-        const windSailFactor = Math.max(0, -sailSide * Math.sign(windCrossSail.y));
+        // Sail directionality factor - can be toggled via static disableWindFromWrongSide property
+        let windSailFactor = 1.0;
+        if (BoatDynamics.disableWindFromWrongSide) {
+            // When windCrossSail.y and sailSide have opposite signs, wind is hitting the sail from the proper side
+            // When they have the same sign, force should be zero
+            windSailFactor = Math.max(0, -sailSide * Math.sign(windCrossSail.y));
+        }
         
         // Calculate dot product for wind-sail angle
         const dotProduct = windDirection.dot(sailDirection);
