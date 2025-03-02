@@ -441,6 +441,8 @@ async def update_ai_boats():
                                 ai_data["boat_data"]["rotation"] = next_movement["rotation"]
                                 if "sailAngle" in next_movement:
                                     ai_data["boat_data"]["sailAngle"] = next_movement["sailAngle"]
+                                if "heelAngle" in next_movement:
+                                    ai_data["boat_data"]["heelAngle"] = next_movement["heelAngle"]
                             else:
                                 # Normalize direction vector
                                 if distance > 0:
@@ -460,6 +462,10 @@ async def update_ai_boats():
                                 # Interpolate sail angle if available
                                 if "sailAngle" in next_movement:
                                     ai_data["boat_data"]["sailAngle"] = next_movement["sailAngle"]
+                                    
+                                # Interpolate heel angle if available
+                                if "heelAngle" in next_movement:
+                                    ai_data["boat_data"]["heelAngle"] = next_movement["heelAngle"]
                     
                     elif ai_data["type"] == "linear":
                         # Standard linear movement for non-recorded boats
@@ -552,6 +558,10 @@ async def handler(websocket):
                         # Add sail angle if available
                         if "sailAngle" in data["boat_data"]:
                             movement["sailAngle"] = data["boat_data"]["sailAngle"]
+                            
+                        # Add heel angle if available
+                        if "heelAngle" in data["boat_data"]:
+                            movement["heelAngle"] = data["boat_data"]["heelAngle"]
                             
                         connected_clients[client_id]["recording"].append(movement)
                     
