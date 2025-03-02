@@ -1,4 +1,12 @@
-run = "python -m http.server 3000"
+
+run = "python3 -m http.server 3000 --bind 0.0.0.0"
+modules = ["web", "python-base-3.11"]
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[deployment]
+run = ["sh", "-c", "python3 -m http.server 3000 --bind 0.0.0.0"]
+
+[nix]
+channel = "stable-24_05"
