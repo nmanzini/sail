@@ -39,11 +39,11 @@ class Boat {
     }
     
     /**
-     * Toggle debug mode
-     * @param {boolean} enabled - Whether debug mode should be enabled
+     * Toggle vector mode
+     * @param {number|boolean} mode - The vector mode to set
      */
-    setDebugMode(enabled) {
-        this.model.setDebugMode(enabled);
+    setVectorMode(mode) {
+        return this.model.setVectorMode(mode);
     }
     
     /**

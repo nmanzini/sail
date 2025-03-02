@@ -101,8 +101,8 @@ class UI {
         // Add buttons to the container
         // Camera button removed per request
         this.createSoundButton();
-        // Add debug vector visualization button
-        this.createDebugButton();
+        // Add vector visualization button
+        this.createVectorButton();
         
         this.createControlsPanel();
 
@@ -120,10 +120,10 @@ class UI {
         // Set up keyboard controls
         this.setupKeyboardControls();
 
-        // Initialize debug mode state - set to mode 2 (all vectors) by default
+        // Initialize vector mode state - set to mode 2 (acceleration+sails) by default
         if (window.sail && window.sail.boat) {
-            const mode = window.sail.boat.setDebugMode(2);
-            this.updateDebugButtonAppearance(mode);
+            const mode = window.sail.boat.setVectorMode(2);
+            this.updateVectorButtonAppearance(mode);
         }
 
         // Log that UI has been initialized for debugging
@@ -212,37 +212,37 @@ class UI {
             rudderAngleValue: document.getElementById('rudder-angle-value'),
             soundButton: document.getElementById('sound-toggle-btn'),
             cameraButton: document.getElementById('camera-button'),
-            debugButton: null,
-            debugModeIndicator: null
+            vectorButton: null,
+            vectorModeIndicator: null
         };
     }
 
     /**
-     * Create a debug button that toggles the force vectors visualization
+     * Create a vector button that toggles the force vectors visualization
      */
-    createDebugButton() {
+    createVectorButton() {
         const buttonContainer = document.getElementById('button-container');
         
-        // Create debug button with arrow logo
-        const debugButton = document.createElement('div');
-        debugButton.id = 'debug-button';
-        debugButton.style.width = '40px';
-        debugButton.style.height = '40px';
-        debugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        debugButton.style.color = 'white';
-        debugButton.style.display = 'flex';
-        debugButton.style.alignItems = 'center';
-        debugButton.style.justifyContent = 'center';
-        debugButton.style.cursor = 'pointer';
-        debugButton.style.borderRadius = '8px';
-        debugButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
-        debugButton.style.transition = 'all 0.2s ease';
-        debugButton.style.userSelect = 'none';
-        debugButton.style.webkitUserSelect = 'none';
-        debugButton.style.position = 'relative';
+        // Create vector button with arrow logo
+        const vectorButton = document.createElement('div');
+        vectorButton.id = 'vector-button';
+        vectorButton.style.width = '40px';
+        vectorButton.style.height = '40px';
+        vectorButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        vectorButton.style.color = 'white';
+        vectorButton.style.display = 'flex';
+        vectorButton.style.alignItems = 'center';
+        vectorButton.style.justifyContent = 'center';
+        vectorButton.style.cursor = 'pointer';
+        vectorButton.style.borderRadius = '8px';
+        vectorButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        vectorButton.style.transition = 'all 0.2s ease';
+        vectorButton.style.userSelect = 'none';
+        vectorButton.style.webkitUserSelect = 'none';
+        vectorButton.style.position = 'relative';
         
         // Use SVG for the arrow icon
-        debugButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+        vectorButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
             <path d="M12 2L19 9H15V20H9V9H5L12 2Z"/>
         </svg>`;
         
@@ -258,94 +258,103 @@ class UI {
         modeIndicator.style.backgroundColor = 'white';
         modeIndicator.style.opacity = '0.4';
         modeIndicator.style.transition = 'all 0.2s ease';
-        debugButton.appendChild(modeIndicator);
+        vectorButton.appendChild(modeIndicator);
         
-        debugButton.title = 'Toggle Vector Visualization Mode';
+        vectorButton.title = 'Toggle Vector Visualization Mode';
         
         // Add hover effect
-        debugButton.addEventListener('mouseover', () => {
-            debugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            debugButton.style.transform = 'scale(1.05)';
+        vectorButton.addEventListener('mouseover', () => {
+            vectorButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            vectorButton.style.transform = 'scale(1.05)';
         });
         
-        debugButton.addEventListener('mouseout', () => {
-            debugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            debugButton.style.transform = 'scale(1)';
+        vectorButton.addEventListener('mouseout', () => {
+            vectorButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            vectorButton.style.transform = 'scale(1)';
         });
         
-        // Add click event
-        debugButton.addEventListener('click', () => this.toggleDebugMode());
+        // Add click event listener to toggle debug mode
+        vectorButton.addEventListener('click', () => {
+            this.toggleVectorMode();
+        });
         
         // Add to button container
         if (buttonContainer) {
-            buttonContainer.appendChild(debugButton);
+            buttonContainer.appendChild(vectorButton);
         } else {
             // Fallback to body if button container doesn't exist
-            debugButton.style.position = 'absolute';
-            debugButton.style.bottom = '80px';
-            debugButton.style.right = '10px';
-            document.body.appendChild(debugButton);
+            vectorButton.style.position = 'absolute';
+            vectorButton.style.bottom = '80px';
+            vectorButton.style.right = '10px';
+            document.body.appendChild(vectorButton);
         }
         
         // Save reference
-        this.elements.debugButton = debugButton;
-        this.elements.debugModeIndicator = modeIndicator;
+        this.elements.vectorButton = vectorButton;
+        this.elements.vectorModeIndicator = modeIndicator;
         
         // Initialize to mode 0 (disabled)
-        this.updateDebugButtonAppearance(0);
+        this.updateVectorButtonAppearance(0);
     }
 
     /**
-     * Toggle debug mode to cycle through vector visualization modes
+     * Toggle vector mode to cycle through vector visualization modes
      */
-    toggleDebugMode() {
-        // Access the Sail instance and toggle debug mode
+    toggleVectorMode() {
+        // Access the Sail instance and toggle vector mode
         if (window.sail && window.sail.boat) {
             // Cycle through the modes and get the new mode
-            const newMode = window.sail.boat.setDebugMode();
+            const newMode = window.sail.boat.setVectorMode();
             
             // Update button appearance based on new mode
-            this.updateDebugButtonAppearance(newMode);
+            this.updateVectorButtonAppearance(newMode);
         }
     }
     
     /**
-     * Update debug button appearance based on current mode
-     * @param {number} mode - Current debug mode (0=none, 1=acceleration, 2=all)
+     * Update vector button appearance based on current mode
+     * @param {number} mode - Current vector mode (0=none, 1=acceleration, 2=acceleration+sails, 3=all)
      */
-    updateDebugButtonAppearance(mode) {
-        if (!this.elements.debugButton || !this.elements.debugModeIndicator) return;
+    updateVectorButtonAppearance(mode) {
+        if (!this.elements.vectorButton || !this.elements.vectorModeIndicator) return;
         
-        const svg = this.elements.debugButton.querySelector('svg');
-        const indicator = this.elements.debugModeIndicator;
+        const svg = this.elements.vectorButton.querySelector('svg');
+        const indicator = this.elements.vectorModeIndicator;
         
+        // Update appearance based on mode
         switch(mode) {
-            case 0: // None - vectors hidden
-                svg.style.fill = 'white';
-                indicator.style.opacity = '0.2';
-                indicator.style.backgroundColor = 'white';
-                this.elements.debugButton.title = 'Vector Visualization: Off';
+            case 0: // None
+                svg.style.fill = '#ffffff'; // White
+                indicator.style.opacity = '0.4';
+                indicator.style.backgroundColor = '#ffffff';
+                this.elements.vectorButton.title = 'Vector Visualization: Off';
                 break;
             case 1: // Acceleration only
                 svg.style.fill = '#ff8c00'; // Orange - matches acceleration vector color
                 indicator.style.opacity = '0.8';
                 indicator.style.backgroundColor = '#ff8c00';
-                this.elements.debugButton.title = 'Vector Visualization: Acceleration Only';
+                this.elements.vectorButton.title = 'Vector Visualization: Acceleration Only';
                 break;
-            case 2: // All vectors
+            case 2: // Acceleration + Sail forces
+                svg.style.fill = '#00cc00'; // Green - matches sail force color
+                indicator.style.opacity = '0.9';
+                indicator.style.backgroundColor = '#00cc00';
+                this.elements.vectorButton.title = 'Vector Visualization: Acceleration + Sail Forces';
+                break;
+            case 3: // All vectors
                 svg.style.fill = '#3399ff'; // Blue
                 indicator.style.opacity = '1';
                 indicator.style.backgroundColor = '#3399ff';
-                this.elements.debugButton.title = 'Vector Visualization: All Vectors';
+                this.elements.vectorButton.title = 'Vector Visualization: All Vectors';
                 break;
         }
     }
 
     /**
-     * Create the debug panel containing all the debug visualizations
+     * Create the vector panel containing all the force vector visualizations
      */
-    createDebugPanel() {
-        // This method is now empty as the debug panel is removed
+    createVectorPanel() {
+        // This method is now empty as the vector panel is removed
     }
 
     /**
@@ -564,6 +573,16 @@ class UI {
             }
 
             switch (e.key) {
+                case 'v':
+                case 'V':
+                    // Toggle vector visualization mode
+                    this.toggleVectorMode();
+                    break;
+                case 'c':
+                case 'C':
+                    // Toggle camera mode
+                    this.toggleCameraMode();
+                    break;
                 case 'a':
                 case 'A':
                 case 'd':
@@ -885,6 +904,7 @@ class UI {
                 <p style="margin: 5px 0;"><span style="color: #a5d8ff;">A ←  /  D →</span> Turn rudder left/right</p>
                 <p style="margin: 5px 0;"><span style="color: #a5d8ff;">W ↑  /  S ↓</span> Increase/decrease sail angle</p>
                 <p style="margin: 5px 0;"><span style="color: #a5d8ff;">C:</span> Toggle between orbit and first-person camera</p>
+                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">V:</span> Cycle through vector visualization modes</p>
             </div>
             <div style="margin-bottom: 15px;">
                 <h4 style="margin: 0 0 10px 0; color: #3399ff;">Mouse Controls</h4>

@@ -23,7 +23,7 @@ class BoatModel {
         this.createBoatModel();
         
         // Initialize debug vectors
-        this.initDebugSystem();
+        this.initVectorSystem();
     }
     
     /**
@@ -46,9 +46,9 @@ class BoatModel {
         this.flagWidth = options.flagWidth || 2;
         this.flagHeight = options.flagHeight || 1;
         
-        // Debug vectors (keeping properties but not using them)
-        this.debugVectors = {};
-        this.debugMode = true; // Set to true by default
+        // Force vectors
+        this.forceVectors = {};
+        this.vectorMode = 0; // Set to none by default
         
         // Flag texture information
         this.flagTexture = null;
@@ -405,9 +405,9 @@ class BoatModel {
     }
     
     /**
-     * Initialize debug system with vectors
+     * Initialize vector system with force vectors
      */
-    initDebugSystem() {
+    initVectorSystem() {
         // Set base heights for each vector to prevent overlapping origins
         const vectorHeights = {
             accelerationVector: 10,
@@ -422,24 +422,24 @@ class BoatModel {
         };
         
         // Create vectors for all forces affecting the boat
-        this.debugVectors = {
-            accelerationVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.accelerationVector, 0), 0xff8c00, 5, "Acceleration"),
-            sailForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.sailForceVector, 0), 0x00ff00, 5, "Sail Force"),
-            liftForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.liftForceVector, 0), 0x00cc00, 5, "Lift Force"), // Light green
-            pushForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.pushForceVector, 0), 0x88ff00, 5, "Push Force"), // Yellow-green
-            forwardForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.forwardForceVector, 0), 0xff0000, 5, "Forward Force"),
-            lateralForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.lateralForceVector, 0), 0x0000ff, 5, "Lateral Force"),
-            dragForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.dragForceVector, 0), 0xff00ff, 5, "Drag Force"),
-            windForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.windForceVector, 0), 0x00ffff, 5, "Wind Force"),
-            apparentWindVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.apparentWindVector, 0), 0xffff00, 5, "Apparent Wind")
+        this.forceVectors = {
+            accelerationVector: this.createForceArrow(new THREE.Vector3(0, vectorHeights.accelerationVector, 0), 0xff8c00, 5, "Acceleration"),
+            sailForceVector: this.createForceArrow(new THREE.Vector3(0, vectorHeights.sailForceVector, 0), 0x00ff00, 5, "Sail Force"),
+            liftForceVector: this.createForceArrow(new THREE.Vector3(0, vectorHeights.liftForceVector, 0), 0x00cc00, 5, "Lift Force"), // Light green
+            pushForceVector: this.createForceArrow(new THREE.Vector3(0, vectorHeights.pushForceVector, 0), 0x88ff00, 5, "Push Force"), // Yellow-green
+            forwardForceVector: this.createForceArrow(new THREE.Vector3(0, vectorHeights.forwardForceVector, 0), 0xff0000, 5, "Forward Force"),
+            lateralForceVector: this.createForceArrow(new THREE.Vector3(0, vectorHeights.lateralForceVector, 0), 0x0000ff, 5, "Lateral Force"),
+            dragForceVector: this.createForceArrow(new THREE.Vector3(0, vectorHeights.dragForceVector, 0), 0xff00ff, 5, "Drag Force"),
+            windForceVector: this.createForceArrow(new THREE.Vector3(0, vectorHeights.windForceVector, 0), 0x00ffff, 5, "Wind Force"),
+            apparentWindVector: this.createForceArrow(new THREE.Vector3(0, vectorHeights.apparentWindVector, 0), 0xffff00, 5, "Apparent Wind")
         };
         
         // Make all vectors invisible by default
         this.setVectorsVisibility(false);
         
-        // Debug modes: 0 = none, 1 = acceleration only, 2 = all vectors, 3 = sail forces only
-        this.debugMode = 0;
-        this.debugModeCount = 4; // Updated number of available modes
+        // Vector modes: 0 = none, 1 = acceleration only, 2 = acceleration+sails, 3 = all vectors
+        this.vectorMode = 0;
+        this.vectorModeCount = 4; // Four available modes
     }
     
     /**
@@ -447,76 +447,79 @@ class BoatModel {
      * @param {boolean} visible - Whether vectors should be visible
      */
     setVectorsVisibility(visible) {
-        for (const key in this.debugVectors) {
-            if (this.debugVectors[key]) {
-                this.debugVectors[key].visible = visible;
+        for (const key in this.forceVectors) {
+            if (this.forceVectors[key]) {
+                this.forceVectors[key].visible = visible;
             }
         }
     }
     
     /**
-     * Set visibility based on current debug mode
+     * Set visibility based on current vector mode
      */
-    updateVectorsVisibilityByMode() {
+    updateVectorsVisibilityByVectorMode() {
         // First, hide all vectors
         this.setVectorsVisibility(false);
         
         // Then show vectors based on mode
-        switch(this.debugMode) {
+        switch(this.vectorMode) {
             case 0: // None - all vectors hidden
                 break;
             case 1: // Acceleration only
-                if (this.debugVectors.accelerationVector) {
-                    this.debugVectors.accelerationVector.visible = true;
+                if (this.forceVectors.accelerationVector) {
+                    this.forceVectors.accelerationVector.visible = true;
                 }
                 break;
-            case 2: // All vectors
+            case 2: // Acceleration + Sail forces
+                if (this.forceVectors.accelerationVector) {
+                    this.forceVectors.accelerationVector.visible = true;
+                }
+                if (this.forceVectors.sailForceVector) {
+                    this.forceVectors.sailForceVector.visible = true;
+                }
+                if (this.forceVectors.liftForceVector) {
+                    this.forceVectors.liftForceVector.visible = true;
+                }
+                if (this.forceVectors.pushForceVector) {
+                    this.forceVectors.pushForceVector.visible = true;
+                }
+                break;
+            case 3: // All vectors
                 this.setVectorsVisibility(true);
-                break;
-            case 3: // Sail forces only - show only sail, lift and push forces
-                if (this.debugVectors.sailForceVector) {
-                    this.debugVectors.sailForceVector.visible = true;
-                }
-                if (this.debugVectors.liftForceVector) {
-                    this.debugVectors.liftForceVector.visible = true;
-                }
-                if (this.debugVectors.pushForceVector) {
-                    this.debugVectors.pushForceVector.visible = true;
-                }
                 break;
         }
     }
     
     /**
      * Toggle debug mode
-     * @param {number|boolean} mode - Set specific mode (0=none, 1=acceleration, 2=all) or boolean to enable/disable all
+     * @param {number|boolean} mode - Set specific mode (0=none, 1=acceleration, 2=acceleration+sails, 3=all) or boolean to enable/disable all
      */
-    setDebugMode(mode) {
+    setVectorMode(mode) {
         // Handle boolean parameter (backward compatibility)
         if (typeof mode === 'boolean') {
-            this.debugMode = mode ? 2 : 0; // true = all vectors, false = none
+            this.vectorMode = mode ? 3 : 0; // true = all vectors, false = none
         } 
         // Handle numeric mode
         else if (typeof mode === 'number') {
-            this.debugMode = mode % this.debugModeCount; // Ensure it's in range
+            this.vectorMode = mode % this.vectorModeCount; // Ensure it's in range
         } 
         // Toggle to next mode if no parameter
         else {
-            this.debugMode = (this.debugMode + 1) % this.debugModeCount;
+            this.vectorMode = (this.vectorMode + 1) % this.vectorModeCount;
         }
         
         // Update vector visibility based on new mode
-        this.updateVectorsVisibilityByMode();
+        this.updateVectorsVisibilityByVectorMode();
         
-        return this.debugMode; // Return current mode for UI feedback
+        return this.vectorMode; // Return current mode for UI feedback
     }
     
     /**
-     * Get current debug mode
-     * @returns {number} Current debug mode (0=none, 1=acceleration, 2=all)
+     * Get current vector mode
+     * @returns {number} Current vector mode (0=none, 1=acceleration, 2=acceleration+sails, 3=all)
      */
-    getDebugMode() {
-        return this.debugMode;
+    getVectorMode() {
+        return this.vectorMode;
     }
     
     /**
@@ -566,14 +569,14 @@ class BoatModel {
     }
     
     /**
-     * Helper to create debug arrow
+     * Helper to create force arrow
      * @param {THREE.Vector3} position - Starting position of the arrow
      * @param {number} color - Color of the arrow
      * @param {number} [length=10] - Length of the arrow
      * @param {string} [label] - Optional label for the arrow
      * @returns {THREE.Group} Arrow with optional label
      */
-    createDebugArrow(position, color, length = 10, label = null) {
+    createForceArrow(position, color, length = 10, label = null) {
         // Create a group to hold arrow and text
         const group = new THREE.Group();
         
@@ -719,8 +722,8 @@ class BoatModel {
                 state.windSpeed = dynamicsOrState.world.getWindSpeed();
             }
             
-            // Update force vectors if in debug mode (mode > 0)
-            if (this.debugMode > 0) {
+            // Update force vectors if in vector mode (mode > 0)
+            if (this.vectorMode > 0) {
                 const forces = dynamicsOrState.getForces();
                 const rotation = state.rotation;
                 
@@ -761,56 +764,56 @@ class BoatModel {
         const scaleFactor = 0.5; // Scale factor to make vectors visible but not too large
         
         // Update acceleration vector (sum of forward and drag forces)
-        if (this.debugVectors.accelerationVector) {
+        if (this.forceVectors.accelerationVector) {
             const accelerationVector = new THREE.Vector3().addVectors(
                 forces.forwardForce || new THREE.Vector3(), 
                 forces.dragForce || new THREE.Vector3()
             );
-            this.updateVector(this.debugVectors.accelerationVector, accelerationVector, rotation, scaleFactor);
+            this.updateVector(this.forceVectors.accelerationVector, accelerationVector, rotation, scaleFactor);
         }
         
         // Update sail force vector
-        if (this.debugVectors.sailForceVector && forces.sailForce) {
-            this.updateVector(this.debugVectors.sailForceVector, forces.sailForce, rotation, scaleFactor);
+        if (this.forceVectors.sailForceVector && forces.sailForce) {
+            this.updateVector(this.forceVectors.sailForceVector, forces.sailForce, rotation, scaleFactor);
         }
         
         // Update lift force vector
-        if (this.debugVectors.liftForceVector && forces.liftForce) {
-            this.updateVector(this.debugVectors.liftForceVector, forces.liftForce, rotation, scaleFactor);
+        if (this.forceVectors.liftForceVector && forces.liftForce) {
+            this.updateVector(this.forceVectors.liftForceVector, forces.liftForce, rotation, scaleFactor);
         }
         
         // Update push force vector
-        if (this.debugVectors.pushForceVector && forces.pushForce) {
-            this.updateVector(this.debugVectors.pushForceVector, forces.pushForce, rotation, scaleFactor);
+        if (this.forceVectors.pushForceVector && forces.pushForce) {
+            this.updateVector(this.forceVectors.pushForceVector, forces.pushForce, rotation, scaleFactor);
         }
         
         // Update forward force vector
-        if (this.debugVectors.forwardForceVector && forces.forwardForce) {
-            this.updateVector(this.debugVectors.forwardForceVector, forces.forwardForce, rotation, scaleFactor);
+        if (this.forceVectors.forwardForceVector && forces.forwardForce) {
+            this.updateVector(this.forceVectors.forwardForceVector, forces.forwardForce, rotation, scaleFactor);
         }
         
         // Update lateral force vector
-        if (this.debugVectors.lateralForceVector && forces.lateralForce) {
-            this.updateVector(this.debugVectors.lateralForceVector, forces.lateralForce, rotation, scaleFactor);
+        if (this.forceVectors.lateralForceVector && forces.lateralForce) {
+            this.updateVector(this.forceVectors.lateralForceVector, forces.lateralForce, rotation, scaleFactor);
         }
         
         // Update drag force vector
-        if (this.debugVectors.dragForceVector && forces.dragForce) {
-            this.updateVector(this.debugVectors.dragForceVector, forces.dragForce, rotation, scaleFactor);
+        if (this.forceVectors.dragForceVector && forces.dragForce) {
+            this.updateVector(this.forceVectors.dragForceVector, forces.dragForce, rotation, scaleFactor);
         }
         
         // Update wind force vector if wind direction is available
-        if (this.debugVectors.windForceVector && state.windDirection && state.windSpeed) {
+        if (this.forceVectors.windForceVector && state.windDirection && state.windSpeed) {
             const windForce = state.windDirection.clone().multiplyScalar(state.windSpeed);
-            this.updateVector(this.debugVectors.windForceVector, windForce, rotation, scaleFactor * 0.3); // Wind vector is scaled differently
+            this.updateVector(this.forceVectors.windForceVector, windForce, rotation, scaleFactor * 0.3); // Wind vector is scaled differently
         }
         
         // Update apparent wind vector if available
-        if (this.debugVectors.apparentWindVector && forces.apparentWind) {
-            this.updateVector(this.debugVectors.apparentWindVector, forces.apparentWind, rotation, scaleFactor * 0.3);
-        } else if (this.debugVectors.apparentWindVector && state.apparentWindDirection && state.apparentWindSpeed) {
+        if (this.forceVectors.apparentWindVector && forces.apparentWind) {
+            this.updateVector(this.forceVectors.apparentWindVector, forces.apparentWind, rotation, scaleFactor * 0.3);
+        } else if (this.forceVectors.apparentWindVector && state.apparentWindDirection && state.apparentWindSpeed) {
             const apparentWindForce = state.apparentWindDirection.clone().multiplyScalar(state.apparentWindSpeed);
-            this.updateVector(this.debugVectors.apparentWindVector, apparentWindForce, rotation, scaleFactor * 0.3);
+            this.updateVector(this.forceVectors.apparentWindVector, apparentWindForce, rotation, scaleFactor * 0.3);
         }
     }
     
@@ -933,7 +936,7 @@ class BoatModel {
         }
         
         // Clear debug vectors (keeping this for compatibility)
-        this.debugVectors = {};
+        this.forceVectors = {};
     }
 
     /**
