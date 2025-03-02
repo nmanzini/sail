@@ -48,7 +48,7 @@ class BoatModel {
         
         // Force vectors
         this.forceVectors = {};
-        this.vectorMode = 0; // Set to none by default
+        this.vectorMode = 2; // Set to acceleration+sails by default
         
         // Flag texture information
         this.flagTexture = null;
@@ -438,8 +438,11 @@ class BoatModel {
         this.setVectorsVisibility(false);
         
         // Vector modes: 0 = none, 1 = acceleration only, 2 = acceleration+sails, 3 = all vectors
-        this.vectorMode = 0;
+        // Note: vectorMode is already set in the constructor, don't override it here
         this.vectorModeCount = 4; // Four available modes
+        
+        // Update vector visibility based on the current mode
+        this.updateVectorsVisibilityByVectorMode();
     }
     
     /**
