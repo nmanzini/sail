@@ -408,15 +408,100 @@ class BoatModel {
      * Initialize debug system with vectors
      */
     initDebugSystem() {
-        // Only create acceleration vector, other debug vectors were removed
-        this.debugVectors = {
-            accelerationVector: this.createDebugArrow(new THREE.Vector3(0, 10, 0), 0xff8c00, 5, null)
+        // Set base heights for each vector to prevent overlapping origins
+        const vectorHeights = {
+            accelerationVector: 10,
+            sailForceVector: 10,
+            forwardForceVector: 10,
+            lateralForceVector: 10,
+            dragForceVector: 10, 
+            windForceVector: 8,
+            apparentWindVector: 12
         };
         
-        // Make acceleration vector visible by default
-        if (this.debugVectors.accelerationVector) {
-            this.debugVectors.accelerationVector.visible = true;
+        // Create vectors for all forces affecting the boat
+        this.debugVectors = {
+            accelerationVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.accelerationVector, 0), 0xff8c00, 5, "Acceleration"),
+            sailForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.sailForceVector, 0), 0x00ff00, 5, "Sail Force"),
+            forwardForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.forwardForceVector, 0), 0xff0000, 5, "Forward Force"),
+            lateralForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.lateralForceVector, 0), 0x0000ff, 5, "Lateral Force"),
+            dragForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.dragForceVector, 0), 0xff00ff, 5, "Drag Force"),
+            windForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.windForceVector, 0), 0x00ffff, 5, "Wind Force"),
+            apparentWindVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.apparentWindVector, 0), 0xffff00, 5, "Apparent Wind")
+        };
+        
+        // Make all vectors invisible by default
+        this.setVectorsVisibility(false);
+        
+        // Debug modes: 0 = none, 1 = acceleration only, 2 = all vectors
+        this.debugMode = 0;
+        this.debugModeCount = 3; // Number of available modes
+    }
+    
+    /**
+     * Set visibility for all debug vectors
+     * @param {boolean} visible - Whether vectors should be visible
+     */
+    setVectorsVisibility(visible) {
+        for (const key in this.debugVectors) {
+            if (this.debugVectors[key]) {
+                this.debugVectors[key].visible = visible;
+            }
         }
+    }
+    
+    /**
+     * Set visibility based on current debug mode
+     */
+    updateVectorsVisibilityByMode() {
+        // First, hide all vectors
+        this.setVectorsVisibility(false);
+        
+        // Then show vectors based on mode
+        switch(this.debugMode) {
+            case 0: // None - all vectors hidden
+                break;
+            case 1: // Acceleration only
+                if (this.debugVectors.accelerationVector) {
+                    this.debugVectors.accelerationVector.visible = true;
+                }
+                break;
+            case 2: // All vectors
+                this.setVectorsVisibility(true);
+                break;
+        }
+    }
+    
+    /**
+     * Toggle debug mode
+     * @param {number|boolean} mode - Set specific mode (0=none, 1=acceleration, 2=all) or boolean to enable/disable all
+     */
+    setDebugMode(mode) {
+        // Handle boolean parameter (backward compatibility)
+        if (typeof mode === 'boolean') {
+            this.debugMode = mode ? 2 : 0; // true = all vectors, false = none
+        } 
+        // Handle numeric mode
+        else if (typeof mode === 'number') {
+            this.debugMode = mode % this.debugModeCount; // Ensure it's in range
+        } 
+        // Toggle to next mode if no parameter
+        else {
+            this.debugMode = (this.debugMode + 1) % this.debugModeCount;
+        }
+        
+        // Update vector visibility based on new mode
+        this.updateVectorsVisibilityByMode();
+        
+        return this.debugMode; // Return current mode for UI feedback
+    }
+    
+    /**
+     * Get current debug mode
+     * @returns {number} Current debug mode (0=none, 1=acceleration, 2=all)
+     */
+    getDebugMode() {
+        return this.debugMode;
     }
     
     /**
@@ -433,12 +518,11 @@ class BoatModel {
         
         // Set text properties
         context.font = '24px Arial';
-        context.fillStyle = '#ffffff';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         
-        // Create background with slight transparency
-        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        // Create background with higher transparency
+        context.fillStyle = 'rgba(0, 0, 0, 0.65)';
         const textWidth = context.measureText(text).width;
         context.fillRect(
             canvas.width / 2 - textWidth / 2 - 5,
@@ -447,13 +531,17 @@ class BoatModel {
             30
         );
         
-        // Draw text
+        // Draw text using the vector's color
         context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
         context.fillText(text, canvas.width / 2, canvas.height / 2);
         
         // Create sprite
         const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ map: texture });
+        const material = new THREE.SpriteMaterial({ 
+            map: texture,
+            transparent: true,
+            depthTest: false // Make sure labels appear on top
+        });
         const sprite = new THREE.Sprite(material);
         
         // Scale sprite based on text width
@@ -500,12 +588,19 @@ class BoatModel {
         group.currentDirection = new THREE.Vector3(0, 0, 1);
         group.currentLength = length;
         
+        // Store vector type to help with label positioning
+        group.vectorType = label || '';
+        
         // Helper function to update label position
         const updateLabelPosition = () => {
             if (textSprite) {
+                const labelOffset = this.calculateLabelOffset(group.vectorType, group.currentDirection);
+                
                 // Calculate the midpoint of the vector in the actual arrow direction
-                const midpoint = group.currentDirection.clone().multiplyScalar(group.currentLength / 2);
-                textSprite.position.copy(midpoint);
+                const midpoint = group.currentDirection.clone().multiplyScalar(group.currentLength * 0.5);
+                
+                // Apply the offset
+                textSprite.position.copy(midpoint.add(labelOffset));
             }
         };
         
@@ -537,6 +632,53 @@ class BoatModel {
     }
     
     /**
+     * Calculate label offset based on vector type to prevent overlaps
+     * @param {string} vectorType - The type of vector
+     * @param {THREE.Vector3} direction - The direction of the vector
+     * @returns {THREE.Vector3} The offset to apply to the label
+     */
+    calculateLabelOffset(vectorType, direction) {
+        // Default offset is perpendicular to direction, scaled by vector type
+        const offset = new THREE.Vector3();
+        
+        switch(vectorType) {
+            case 'Acceleration':
+                // Position above and to the right
+                offset.set(1.5, 1.5, 0);
+                break;
+            case 'Sail Force':
+                // Position below
+                offset.set(0, -1.5, 0);
+                break;
+            case 'Forward Force':
+                // Position above
+                offset.set(0, 2, 0);
+                break;
+            case 'Lateral Force':
+                // Position to the right
+                offset.set(2, 0, 0);
+                break;
+            case 'Drag Force':
+                // Position above and to the left
+                offset.set(-1.5, 1.5, 0);
+                break;
+            case 'Wind Force':
+                // Position below vector
+                offset.set(0, -2, 0);
+                break;
+            case 'Apparent Wind':
+                // Position to the left
+                offset.set(-2, 0, 0);
+                break;
+            default:
+                // Default offset above vector
+                offset.set(0, 1, 0);
+        }
+        
+        return offset;
+    }
+    
+    /**
      * Update the boat model based on the provided state
      * @param {Object} dynamicsOrState - Either the boat dynamics object or state object
      */
@@ -551,20 +693,16 @@ class BoatModel {
             // Get additional info needed for visuals
             if (dynamicsOrState.world) {
                 state.windDirection = dynamicsOrState.world.getWindDirection();
+                state.windSpeed = dynamicsOrState.world.getWindSpeed();
             }
             
-            // Update acceleration vector if in debug mode
-            if (this.debugMode && this.debugVectors.accelerationVector) {
+            // Update force vectors if in debug mode (mode > 0)
+            if (this.debugMode > 0) {
                 const forces = dynamicsOrState.getForces();
                 const rotation = state.rotation;
                 
-                // Calculate acceleration vector (sum of forward and drag forces)
-                const accelerationVector = new THREE.Vector3().addVectors(
-                    forces.forwardForce, 
-                    forces.dragForce
-                );
-                
-                this.updateAccelerationVector(accelerationVector, rotation);
+                // Update all force vectors
+                this.updateForceVectors(forces, rotation, state);
             }
         } else {
             // Use provided state object directly
@@ -582,10 +720,92 @@ class BoatModel {
         // Update heel angle
         this.boatGroup.rotation.z = state.heelAngle;
         
-        // Update flag direction if wind direction is available
-        if (state.windDirection) {
+        // Update flag direction using apparent wind if available, otherwise use true wind
+        if (state.apparentWindDirection && state.apparentWindDirection.length() > 0) {
+            this.updateFlagDirection(state.apparentWindDirection, state.rotation);
+        } else if (state.windDirection) {
             this.updateFlagDirection(state.windDirection, state.rotation);
         }
+    }
+    
+    /**
+     * Update all force vectors
+     * @param {Object} forces - The forces object containing all forces
+     * @param {number} rotation - Current boat rotation
+     * @param {Object} state - The boat state
+     */
+    updateForceVectors(forces, rotation, state) {
+        const scaleFactor = 0.5; // Scale factor to make vectors visible but not too large
+        
+        // Update acceleration vector (sum of forward and drag forces)
+        if (this.debugVectors.accelerationVector) {
+            const accelerationVector = new THREE.Vector3().addVectors(
+                forces.forwardForce || new THREE.Vector3(), 
+                forces.dragForce || new THREE.Vector3()
+            );
+            this.updateVector(this.debugVectors.accelerationVector, accelerationVector, rotation, scaleFactor);
+        }
+        
+        // Update sail force vector
+        if (this.debugVectors.sailForceVector && forces.sailForce) {
+            this.updateVector(this.debugVectors.sailForceVector, forces.sailForce, rotation, scaleFactor);
+        }
+        
+        // Update forward force vector
+        if (this.debugVectors.forwardForceVector && forces.forwardForce) {
+            this.updateVector(this.debugVectors.forwardForceVector, forces.forwardForce, rotation, scaleFactor);
+        }
+        
+        // Update lateral force vector
+        if (this.debugVectors.lateralForceVector && forces.lateralForce) {
+            this.updateVector(this.debugVectors.lateralForceVector, forces.lateralForce, rotation, scaleFactor);
+        }
+        
+        // Update drag force vector
+        if (this.debugVectors.dragForceVector && forces.dragForce) {
+            this.updateVector(this.debugVectors.dragForceVector, forces.dragForce, rotation, scaleFactor);
+        }
+        
+        // Update wind force vector if wind direction is available
+        if (this.debugVectors.windForceVector && state.windDirection && state.windSpeed) {
+            const windForce = state.windDirection.clone().multiplyScalar(state.windSpeed);
+            this.updateVector(this.debugVectors.windForceVector, windForce, rotation, scaleFactor * 0.3); // Wind vector is scaled differently
+        }
+        
+        // Update apparent wind vector if available
+        if (this.debugVectors.apparentWindVector && forces.apparentWind) {
+            this.updateVector(this.debugVectors.apparentWindVector, forces.apparentWind, rotation, scaleFactor * 0.3);
+        } else if (this.debugVectors.apparentWindVector && state.apparentWindDirection && state.apparentWindSpeed) {
+            const apparentWindForce = state.apparentWindDirection.clone().multiplyScalar(state.apparentWindSpeed);
+            this.updateVector(this.debugVectors.apparentWindVector, apparentWindForce, rotation, scaleFactor * 0.3);
+        }
+    }
+    
+    /**
+     * Update a single vector
+     * @param {THREE.Object3D} vector - The vector object to update
+     * @param {THREE.Vector3} forceVector - The force vector in world space
+     * @param {number} rotation - Current boat rotation
+     * @param {number} scaleFactor - Scale factor for vector length
+     */
+    updateVector(vector, forceVector, rotation, scaleFactor) {
+        if (!vector) return;
+        
+        // Convert from world to local space
+        const localForce = forceVector.clone().applyAxisAngle(
+            new THREE.Vector3(0, 1, 0), 
+            -rotation
+        );
+        
+        const normalizedDir = localForce.clone().normalize();
+        const length = Math.max(1, forceVector.length() * scaleFactor);
+        
+        vector.setDirection(normalizedDir);
+        vector.setLength(length);
+        
+        // Update custom properties
+        vector.currentDirection = normalizedDir;
+        vector.currentLength = length;
     }
     
     /**
@@ -631,53 +851,6 @@ class BoatModel {
         this.flag.rotation.y = angle;
     }
     
-    /**
-     * Update acceleration vector
-     * @param {THREE.Vector3} accelerationVector - The acceleration vector in world space
-     * @param {number} rotation - Current boat rotation
-     */
-    updateAccelerationVector(accelerationVector, rotation) {
-        const scaleFactor = 2.0;  // Reduced scale factor to make the vector smaller
-        const vector = this.debugVectors.accelerationVector;
-        
-        if (!vector) return;
-        
-        // Convert acceleration from world to local space
-        const localAcceleration = accelerationVector.clone().applyAxisAngle(
-            new THREE.Vector3(0, 1, 0), 
-            -rotation
-        );
-        
-        const normalizedDir = localAcceleration.clone().normalize();
-        const length = Math.max(1, accelerationVector.length() * scaleFactor);
-        
-        vector.setDirection(normalizedDir);
-        vector.setLength(length);
-        
-        // Update custom properties
-        vector.currentDirection = normalizedDir;
-        vector.currentLength = length;
-    }
-    
-    /**
-     * Toggle debug mode
-     * @param {boolean} enabled - Whether debug mode should be enabled
-     */
-    setDebugMode(enabled) {
-        this.debugMode = enabled;
-        
-        // Show/hide acceleration vector
-        if (this.debugVectors.accelerationVector) {
-            this.debugVectors.accelerationVector.visible = enabled;
-        }
-        
-        // Debug panel only, no vectors to show/hide
-        const panel = document.getElementById('debug-panel');
-        if (panel) {
-            panel.style.display = enabled ? 'block' : 'none';
-        }
-    }
-
     /**
      * Get the boat's 3D group
      * @returns {THREE.Group} The boat's 3D group

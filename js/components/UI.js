@@ -101,7 +101,8 @@ class UI {
         // Add buttons to the container
         // Camera button removed per request
         this.createSoundButton();
-        // Debug button removed per request
+        // Add debug vector visualization button
+        this.createDebugButton();
         
         this.createControlsPanel();
 
@@ -119,12 +120,10 @@ class UI {
         // Set up keyboard controls
         this.setupKeyboardControls();
 
-        // Initialize debug mode state - set to true by default
-        this.debugMode = true;
-
-        // Make sure boat is in debug mode by default (showing acceleration vector)
+        // Initialize debug mode state - set to mode 2 (all vectors) by default
         if (window.sail && window.sail.boat) {
-            window.sail.boat.setDebugMode(true);
+            const mode = window.sail.boat.setDebugMode(2);
+            this.updateDebugButtonAppearance(mode);
         }
 
         // Log that UI has been initialized for debugging
@@ -213,61 +212,132 @@ class UI {
             rudderAngleValue: document.getElementById('rudder-angle-value'),
             soundButton: document.getElementById('sound-toggle-btn'),
             cameraButton: document.getElementById('camera-button'),
-            debugButton: null
+            debugButton: null,
+            debugModeIndicator: null
         };
     }
 
     /**
-     * Create a debug button that toggles the debug panel
+     * Create a debug button that toggles the force vectors visualization
      */
     createDebugButton() {
-        // Create debug button
+        const buttonContainer = document.getElementById('button-container');
+        
+        // Create debug button with arrow logo
         const debugButton = document.createElement('div');
         debugButton.id = 'debug-button';
-        debugButton.className = 'control-button';
-        debugButton.title = 'Toggle Acceleration Vector';
-        debugButton.innerHTML = `
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="#3399ff">
-                <path d="M12 2L2 12h5v8h10v-8h5L12 2zm0 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
-            </svg>
-        `;
+        debugButton.style.width = '40px';
+        debugButton.style.height = '40px';
+        debugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        debugButton.style.color = 'white';
+        debugButton.style.display = 'flex';
+        debugButton.style.alignItems = 'center';
+        debugButton.style.justifyContent = 'center';
+        debugButton.style.cursor = 'pointer';
+        debugButton.style.borderRadius = '8px';
+        debugButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        debugButton.style.transition = 'all 0.2s ease';
+        debugButton.style.userSelect = 'none';
+        debugButton.style.webkitUserSelect = 'none';
+        debugButton.style.position = 'relative';
         
-        // Add to button container created earlier
-        const buttonContainer = document.getElementById('button-container');
+        // Use SVG for the arrow icon
+        debugButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path d="M12 2L19 9H15V20H9V9H5L12 2Z"/>
+        </svg>`;
+        
+        // Add small mode indicator
+        const modeIndicator = document.createElement('div');
+        modeIndicator.id = 'debug-mode-indicator';
+        modeIndicator.style.position = 'absolute';
+        modeIndicator.style.bottom = '0';
+        modeIndicator.style.right = '0';
+        modeIndicator.style.width = '12px';
+        modeIndicator.style.height = '12px';
+        modeIndicator.style.borderRadius = '50%';
+        modeIndicator.style.backgroundColor = 'white';
+        modeIndicator.style.opacity = '0.4';
+        modeIndicator.style.transition = 'all 0.2s ease';
+        debugButton.appendChild(modeIndicator);
+        
+        debugButton.title = 'Toggle Vector Visualization Mode';
+        
+        // Add hover effect
+        debugButton.addEventListener('mouseover', () => {
+            debugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            debugButton.style.transform = 'scale(1.05)';
+        });
+        
+        debugButton.addEventListener('mouseout', () => {
+            debugButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            debugButton.style.transform = 'scale(1)';
+        });
+        
+        // Add click event
+        debugButton.addEventListener('click', () => this.toggleDebugMode());
+        
+        // Add to button container
         if (buttonContainer) {
             buttonContainer.appendChild(debugButton);
         } else {
             // Fallback to body if button container doesn't exist
             debugButton.style.position = 'absolute';
-            debugButton.style.top = '10px';
-            debugButton.style.right = '180px';
+            debugButton.style.bottom = '80px';
+            debugButton.style.right = '10px';
             document.body.appendChild(debugButton);
         }
         
-        // Add click event
-        debugButton.addEventListener('click', () => this.toggleDebugMode());
-        
         // Save reference
         this.elements.debugButton = debugButton;
+        this.elements.debugModeIndicator = modeIndicator;
+        
+        // Initialize to mode 0 (disabled)
+        this.updateDebugButtonAppearance(0);
     }
 
     /**
-     * Toggle debug mode
+     * Toggle debug mode to cycle through vector visualization modes
      */
     toggleDebugMode() {
         // Access the Sail instance and toggle debug mode
         if (window.sail && window.sail.boat) {
-            // Toggle debug mode state
-            this.debugMode = !this.debugMode;
+            // Cycle through the modes and get the new mode
+            const newMode = window.sail.boat.setDebugMode();
             
-            // Set the debug mode on the boat
-            window.sail.boat.setDebugMode(this.debugMode);
-            
-            // Update button appearance
-            if (this.elements.debugButton) {
-                this.elements.debugButton.querySelector('svg').style.fill = 
-                    this.debugMode ? '#3399ff' : 'white';
-            }
+            // Update button appearance based on new mode
+            this.updateDebugButtonAppearance(newMode);
+        }
+    }
+    
+    /**
+     * Update debug button appearance based on current mode
+     * @param {number} mode - Current debug mode (0=none, 1=acceleration, 2=all)
+     */
+    updateDebugButtonAppearance(mode) {
+        if (!this.elements.debugButton || !this.elements.debugModeIndicator) return;
+        
+        const svg = this.elements.debugButton.querySelector('svg');
+        const indicator = this.elements.debugModeIndicator;
+        
+        switch(mode) {
+            case 0: // None - vectors hidden
+                svg.style.fill = 'white';
+                indicator.style.opacity = '0.2';
+                indicator.style.backgroundColor = 'white';
+                this.elements.debugButton.title = 'Vector Visualization: Off';
+                break;
+            case 1: // Acceleration only
+                svg.style.fill = '#ff8c00'; // Orange - matches acceleration vector color
+                indicator.style.opacity = '0.8';
+                indicator.style.backgroundColor = '#ff8c00';
+                this.elements.debugButton.title = 'Vector Visualization: Acceleration Only';
+                break;
+            case 2: // All vectors
+                svg.style.fill = '#3399ff'; // Blue
+                indicator.style.opacity = '1';
+                indicator.style.backgroundColor = '#3399ff';
+                this.elements.debugButton.title = 'Vector Visualization: All Vectors';
+                break;
         }
     }
 
