@@ -412,6 +412,8 @@ class BoatModel {
         const vectorHeights = {
             accelerationVector: 10,
             sailForceVector: 10,
+            liftForceVector: 14, // Higher position for lift force
+            pushForceVector: 16, // Higher position for push force
             forwardForceVector: 10,
             lateralForceVector: 10,
             dragForceVector: 10, 
@@ -423,6 +425,8 @@ class BoatModel {
         this.debugVectors = {
             accelerationVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.accelerationVector, 0), 0xff8c00, 5, "Acceleration"),
             sailForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.sailForceVector, 0), 0x00ff00, 5, "Sail Force"),
+            liftForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.liftForceVector, 0), 0x00cc00, 5, "Lift Force"), // Light green
+            pushForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.pushForceVector, 0), 0x88ff00, 5, "Push Force"), // Yellow-green
             forwardForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.forwardForceVector, 0), 0xff0000, 5, "Forward Force"),
             lateralForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.lateralForceVector, 0), 0x0000ff, 5, "Lateral Force"),
             dragForceVector: this.createDebugArrow(new THREE.Vector3(0, vectorHeights.dragForceVector, 0), 0xff00ff, 5, "Drag Force"),
@@ -433,9 +437,9 @@ class BoatModel {
         // Make all vectors invisible by default
         this.setVectorsVisibility(false);
         
-        // Debug modes: 0 = none, 1 = acceleration only, 2 = all vectors
+        // Debug modes: 0 = none, 1 = acceleration only, 2 = all vectors, 3 = sail forces only
         this.debugMode = 0;
-        this.debugModeCount = 3; // Number of available modes
+        this.debugModeCount = 4; // Updated number of available modes
     }
     
     /**
@@ -468,6 +472,17 @@ class BoatModel {
                 break;
             case 2: // All vectors
                 this.setVectorsVisibility(true);
+                break;
+            case 3: // Sail forces only - show only sail, lift and push forces
+                if (this.debugVectors.sailForceVector) {
+                    this.debugVectors.sailForceVector.visible = true;
+                }
+                if (this.debugVectors.liftForceVector) {
+                    this.debugVectors.liftForceVector.visible = true;
+                }
+                if (this.debugVectors.pushForceVector) {
+                    this.debugVectors.pushForceVector.visible = true;
+                }
                 break;
         }
     }
@@ -650,6 +665,14 @@ class BoatModel {
                 // Position below
                 offset.set(0, -1.5, 0);
                 break;
+            case 'Lift Force':
+                // Position to the right and slightly up
+                offset.set(2, 0.5, 0);
+                break;
+            case 'Push Force':
+                // Position to the left and slightly up
+                offset.set(-2, 0.5, 0);
+                break;
             case 'Forward Force':
                 // Position above
                 offset.set(0, 2, 0);
@@ -749,6 +772,16 @@ class BoatModel {
         // Update sail force vector
         if (this.debugVectors.sailForceVector && forces.sailForce) {
             this.updateVector(this.debugVectors.sailForceVector, forces.sailForce, rotation, scaleFactor);
+        }
+        
+        // Update lift force vector
+        if (this.debugVectors.liftForceVector && forces.liftForce) {
+            this.updateVector(this.debugVectors.liftForceVector, forces.liftForce, rotation, scaleFactor);
+        }
+        
+        // Update push force vector
+        if (this.debugVectors.pushForceVector && forces.pushForce) {
+            this.updateVector(this.debugVectors.pushForceVector, forces.pushForce, rotation, scaleFactor);
         }
         
         // Update forward force vector

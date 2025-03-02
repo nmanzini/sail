@@ -2,8 +2,9 @@ import * as THREE from 'three';
 
 /**
  * BoatDynamics class responsible for boat physics and state
+ * This version includes fixes for various issues in the original implementation
  */
-class BoatDynamics {
+class BoatDynamicsFixes {
     constructor(world, options = {}) {
         this.world = world;
         
@@ -51,6 +52,9 @@ class BoatDynamics {
         // Apparent wind 
         this.apparentWindDirection = new THREE.Vector3();
         this.apparentWindSpeed = 0;
+        
+        // Minimum apparent wind speed to prevent division by zero
+        this.minWindSpeed = 0.01;
     }
     
     /**
@@ -113,7 +117,7 @@ class BoatDynamics {
     calculateApparentWind() {
         // Get true wind vector
         const trueWindDirection = this.world.getWindDirection().clone();
-        const trueWindSpeed = this.world.getWindSpeed();
+        const trueWindSpeed = Math.max(this.minWindSpeed, this.world.getWindSpeed());
         const trueWindVector = trueWindDirection.multiplyScalar(trueWindSpeed);
         
         // Calculate boat velocity vector
@@ -123,9 +127,14 @@ class BoatDynamics {
         // Apparent wind = true wind - boat velocity
         const apparentWindVector = new THREE.Vector3().subVectors(trueWindVector, boatVelocityVector);
         
-        // Calculate apparent wind speed and direction
-        const apparentWindSpeed = apparentWindVector.length();
-        const apparentWindDirection = apparentWindVector.clone().normalize();
+        // Calculate apparent wind speed and direction with a minimum value to prevent division by zero
+        const apparentWindSpeed = Math.max(this.minWindSpeed, apparentWindVector.length());
+        
+        // Only normalize if the vector length is not zero
+        const apparentWindDirection = apparentWindVector.clone();
+        if (apparentWindSpeed > this.minWindSpeed) {
+            apparentWindDirection.normalize();
+        }
         
         // Store for later use
         this.apparentWindDirection = apparentWindDirection;
@@ -148,7 +157,7 @@ class BoatDynamics {
         const windDirection = apparentWind.direction;
         const windStrength = apparentWind.speed;
         
-        if (windStrength <= 0) {
+        if (windStrength <= this.minWindSpeed) {
             return new THREE.Vector3();
         }
         
@@ -167,10 +176,15 @@ class BoatDynamics {
         // Positive means sail is on port/left side, negative means starboard/right side
         const sailSide = Math.sign(this.sailAngle);
         
+        // FIX: Handle the edge case where windCrossSail.y is exactly zero
+        // When wind is perfectly aligned with sail, use a small positive value
+        const windCrossSailSign = Math.abs(windCrossSail.y) < 0.0001 ? 
+            (sailSide !== 0 ? -sailSide : 1) : Math.sign(windCrossSail.y);
+        
         // Sail directionality factor
         // When windCrossSail.y and sailSide have opposite signs, wind is hitting the sail from the proper side
         // When they have the same sign, force should be zero
-        const windSailFactor = Math.max(0, -sailSide * Math.sign(windCrossSail.y));
+        const windSailFactor = Math.max(0, -sailSide * windCrossSailSign);
         
         // Calculate dot product for wind-sail angle
         const dotProduct = windDirection.dot(sailDirection);
@@ -182,12 +196,28 @@ class BoatDynamics {
         // Optimal angle of attack for maximum lift (typically around 15 degrees)
         const optimalLiftAngle = Math.PI / 12; // 15 degrees
         
-        // Lift coefficient peaks at optimal angle and falls off on either side
-        // Using a modified sin curve that peaks at optimalLiftAngle
+        // FIX: Improved lift coefficient calculation with better stall characteristics
+        // Modified lift curve with more realistic behavior at high angles
         const normalizedAngle = Math.min(angle, Math.PI - angle); // Normalize angle to 0-π/2
-        const liftCoefficient = Math.sin(2 * normalizedAngle) * 
-                               Math.exp(-(normalizedAngle - optimalLiftAngle) * 
-                                       (normalizedAngle - optimalLiftAngle) / 0.2);
+        
+        // Critical angle where stall begins (around 25 degrees)
+        const criticalAngle = Math.PI / 7; 
+        
+        // Calculate lift coefficient with stall characteristics
+        let liftCoefficient;
+        
+        if (normalizedAngle < criticalAngle) {
+            // Before stall: smooth curve peaking at optimal angle
+            liftCoefficient = Math.sin(2 * normalizedAngle) * 
+                             Math.exp(-(normalizedAngle - optimalLiftAngle) * 
+                                     (normalizedAngle - optimalLiftAngle) / 0.2);
+        } else {
+            // After stall: rapid decrease in lift
+            const stallFactor = Math.exp(-(normalizedAngle - criticalAngle) * 2);
+            liftCoefficient = Math.sin(2 * criticalAngle) * 
+                             Math.exp(-(criticalAngle - optimalLiftAngle) * 
+                                     (criticalAngle - optimalLiftAngle) / 0.2) * stallFactor;
+        }
         
         // Lift is perpendicular to the apparent wind direction
         // Create a normalized perpendicular vector to the wind and sail plane
@@ -268,8 +298,9 @@ class BoatDynamics {
      * @returns {THREE.Vector3} The drag force vector
      */
     calculateDragForce() {
-        // Standard quadratic drag model (proportional to v²)
-        const dragMagnitude = this.dragCoefficient * this.speed * this.speed * this.speed;
+        // FIX: Standard quadratic drag model (proportional to v²)
+        // Changed from cubic (v³) to quadratic (v²) for more realistic physics
+        const dragMagnitude = this.dragCoefficient * this.speed * this.speed;
         
         // Drag always opposes motion, so it's in the opposite direction of travel
         const boatDirection = this.getDirectionVector(this.rotation.y);
@@ -364,13 +395,13 @@ class BoatDynamics {
      */
     getState() {
         return {
-            position: this.position,
+            position: this.position.clone(),
             rotation: this.rotation.y,
             speed: this.speed,
             sailAngle: this.sailAngle,
             rudderAngle: this.rudderAngle,
             heelAngle: this.heelAngle,
-            apparentWindDirection: this.apparentWindDirection,
+            apparentWindDirection: this.apparentWindDirection.clone(),
             apparentWindSpeed: this.apparentWindSpeed
         };
     }
@@ -380,14 +411,17 @@ class BoatDynamics {
      * @returns {Object} The force vectors
      */
     getForces() {
+        // FIX: Added proper null checks for all force vectors
         return {
-            sailForce: this.sailForce.clone(),
+            sailForce: this.sailForce ? this.sailForce.clone() : new THREE.Vector3(),
             liftForce: this.liftForce ? this.liftForce.clone() : new THREE.Vector3(),
             pushForce: this.pushForce ? this.pushForce.clone() : new THREE.Vector3(),
-            forwardForce: this.forwardForce.clone(),
-            lateralForce: this.lateralForce.clone(),
-            dragForce: this.dragForce.clone(),
-            apparentWind: this.apparentWindDirection.clone().multiplyScalar(this.apparentWindSpeed)
+            forwardForce: this.forwardForce ? this.forwardForce.clone() : new THREE.Vector3(),
+            lateralForce: this.lateralForce ? this.lateralForce.clone() : new THREE.Vector3(),
+            dragForce: this.dragForce ? this.dragForce.clone() : new THREE.Vector3(),
+            apparentWind: this.apparentWindDirection && this.apparentWindSpeed ? 
+                this.apparentWindDirection.clone().multiplyScalar(this.apparentWindSpeed) : 
+                new THREE.Vector3()
         };
     }
     
@@ -403,11 +437,11 @@ class BoatDynamics {
     // ---- Getter methods ----
     
     getPosition() {
-        return this.position;
+        return this.position.clone();
     }
     
     getRotation() {
-        return this.rotation;
+        return this.rotation.clone();
     }
     
     getSpeedInKnots() {
@@ -415,9 +449,11 @@ class BoatDynamics {
     }
     
     getHeadingInDegrees() {
+        // FIX: Better normalization for heading in degrees
         let degrees = (this.rotation.y * 180 / Math.PI) % 360;
         if (degrees < 0) degrees += 360;
-        return degrees;
+        // Ensure we return exactly 0 instead of 360
+        return degrees === 360 ? 0 : degrees;
     }
     
     getHeelAngleInDegrees() {
@@ -433,4 +469,4 @@ class BoatDynamics {
     }
 }
 
-export default BoatDynamics; 
+export default BoatDynamicsFixes; 
