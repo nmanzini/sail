@@ -205,6 +205,11 @@ class MultiplayerManager {
             remoteBoat.setSailAngle(boatData.sailAngle);
         }
         
+        // Set heel angle if provided
+        if (boatData.heelAngle !== undefined) {
+            remoteBoat.setHeelAngle(boatData.heelAngle);
+        }
+        
         // Update flag if provided
         if (boatData.flag !== undefined && boatData.flag !== null) {
             remoteBoat.setFlagCode(boatData.flag);
@@ -244,6 +249,7 @@ class MultiplayerManager {
         const position = this.playerBoat.getPosition();
         const rotation = this.playerBoat.getRotation();
         const sailAngle = this.playerBoat.getSailAngle();
+        const heelAngle = this.playerBoat.getHeelAngle(); // Get the heel angle
         
         // Create the boat data to send
         const boatData = {
@@ -258,6 +264,7 @@ class MultiplayerManager {
                 z: rotation.z
             },
             sailAngle: sailAngle,
+            heelAngle: heelAngle, // Include heel angle in updates
             flag: this.flagCode // Include flag information in regular updates
         };
         

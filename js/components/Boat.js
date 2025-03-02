@@ -159,6 +159,26 @@ class Boat {
         return this.dynamics.getHeelAngleInDegrees();
     }
     
+    /**
+     * Get the current heel angle in radians
+     * @returns {number} The heel angle in radians
+     */
+    getHeelAngle() {
+        return this.dynamics.heelAngle;
+    }
+    
+    /**
+     * Set the heel angle directly (primarily for remote boats)
+     * @param {number} angle - The heel angle in radians
+     */
+    setHeelAngle(angle) {
+        this.dynamics.heelAngle = angle;
+        // Update the model if it exists
+        if (this.model) {
+            this.model.boatGroup.rotation.z = angle;
+        }
+    }
+    
     getSailForce() {
         return this.dynamics.getForces().sailForce;
     }
