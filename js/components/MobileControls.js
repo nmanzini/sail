@@ -66,7 +66,7 @@ class MobileControls {
 
         // Add label for rudder joystick
         const rudderLabel = document.createElement('div');
-        rudderLabel.textContent = 'RUDDER';
+        rudderLabel.innerHTML = 'RUDDER<br><span style="font-size: 0.8em; font-weight: normal;">← Turn Left | Turn Right →</span>';
         rudderLabel.style.position = 'absolute';
         rudderLabel.style.bottom = '10px';
         rudderLabel.style.width = '100%';
@@ -83,9 +83,9 @@ class MobileControls {
         sailZone.style.height = '100%';
         sailZone.style.position = 'relative';
 
-        // Add label for sail joystick
+        // Add label for sail joystick with up/down instructions
         const sailLabel = document.createElement('div');
-        sailLabel.textContent = 'SAIL';
+        sailLabel.innerHTML = 'SAIL<br><span style="font-size: 0.8em; font-weight: normal;">↑ Pull In | ↓ Push Out</span>';
         sailLabel.style.position = 'absolute';
         sailLabel.style.bottom = '10px';
         sailLabel.style.width = '100%';
@@ -110,7 +110,7 @@ class MobileControls {
      * Create nipple.js joysticks
      */
     createJoysticks(rudderZone, sailZone) {
-        // Create rudder joystick (left)
+        // Create rudder joystick (left) - horizontal movement only
         this.joysticks.rudder = nipplejs.create({
             zone: rudderZone,
             mode: 'static',
@@ -120,14 +120,14 @@ class MobileControls {
             lockX: true // Only allow horizontal movement
         });
 
-        // Create sail joystick (right)
+        // Create sail joystick (right) - vertical movement only
         this.joysticks.sail = nipplejs.create({
             zone: sailZone,
             mode: 'static',
             position: { left: '50%', top: '50%' },
             color: 'rgba(100, 100, 255, 0.8)',
             size: 100,
-            lockX: true // Only allow horizontal movement
+            lockY: true // Only allow vertical movement (changed from lockX)
         });
 
         // Add event listeners for rudder joystick
@@ -149,14 +149,18 @@ class MobileControls {
             });
         });
 
-        // Add event listeners for sail joystick
+        // Add event listeners for sail joystick - now using Y-axis
         this.joysticks.sail.on('move', (evt, data) => {
-            // Get x-axis data (-1 to 1 range)
-            const xDirection = data.vector.x;
-
+            // Get y-axis data (-1 to 1 range)
+            // Y is negative when pulling up, positive when pushing down
+            const yDirection = data.vector.y;
+            
             // Pass touch controls to the boat's control system
+            // We're inverting the y-value:
+            // - Negative values (up) = pull sail in
+            // - Positive values (down) = push sail out
             this.boat.processTouchControls({
-                sail: xDirection
+                sail: -yDirection // Invert the direction to make up=pull in, down=push out
             });
         });
 
