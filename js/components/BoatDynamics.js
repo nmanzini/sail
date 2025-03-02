@@ -32,13 +32,13 @@ class BoatDynamics {
         this.sailEfficiency = options.sailEfficiency || 1.5;
         this.rudderEfficiency = options.rudderEfficiency || 1.25;
         this.inertia = options.inertia || 9;
-        this.heelFactor = options.heelFactor || 0.12;
-        this.heelRecoveryRate = options.heelRecoveryRate || 0.7;
+        this.heelFactor = options.heelFactor || 0.15;
+        this.heelRecoveryRate = options.heelRecoveryRate || 1.0;
         
         // Limits
         this.maxSailAngle = Math.PI / 2;
         this.maxRudderAngle = Math.PI / 4;
-        this.maxHeelAngle = Math.PI / 6;
+        this.maxHeelAngle = Math.PI / 4;
         
         // Force vectors
         this.sailForce = new THREE.Vector3();
@@ -286,24 +286,37 @@ class BoatDynamics {
     updateHeelAngle(deltaTime) {
         const lateralMagnitude = this.lateralForce.length();
         
-        // Get lateral direction for determining heel direction
-        const lateralDirection = new THREE.Vector3(
-            -Math.cos(this.rotation.y), 
-            0, 
-            Math.sin(this.rotation.y)
-        );
+        // Get boat's forward direction vector
+        const boatDirection = this.getDirectionVector(this.rotation.y);
         
+        // Calculate true lateral direction (perpendicular to boat direction)
+        // Using cross product with up vector to get correct perpendicular vector
+        const upVector = new THREE.Vector3(0, 1, 0);
+        const lateralDirection = new THREE.Vector3().crossVectors(boatDirection, upVector).normalize();
+        
+        // Determine heel direction by comparing lateral force with lateral direction
+        // If dot product is positive, lateral force is in same direction as lateralDirection
+        // If negative, it's in opposite direction
         const heelDirection = Math.sign(this.lateralForce.dot(lateralDirection));
         
         // Calculate target heel angle based on lateral force
+        // Use square root to make heel less aggressive at higher forces (more realistic)
         const targetHeelAngle = Math.min(
             this.maxHeelAngle,
-            lateralMagnitude * this.heelFactor
+            Math.sqrt(lateralMagnitude) * this.heelFactor
         ) * heelDirection;
+        
+        // Separate recovery rate from application rate for more realistic physics
+        const heelApplicationRate = this.heelRecoveryRate * 1.2; // Faster to heel over
+        const recoveryRate = this.heelRecoveryRate * 0.8;        // Slower to recover
+        
+        // Use appropriate rate depending on whether we're heeling more or recovering
+        const rateToUse = Math.abs(targetHeelAngle) > Math.abs(this.heelAngle) ? 
+                           heelApplicationRate : recoveryRate;
         
         // Smoothly transition to target heel angle
         this.heelAngle += (targetHeelAngle - this.heelAngle) * 
-            Math.min(1, deltaTime * this.heelRecoveryRate);
+            Math.min(1, deltaTime * rateToUse);
     }
     
     /**
@@ -421,7 +434,10 @@ class BoatDynamics {
     }
     
     getHeelAngleInDegrees() {
-        return this.heelAngle * (180 / Math.PI);
+        // Convert to degrees and return in a more intuitive format
+        // Positive value means heeling to starboard/right side
+        // Negative value means heeling to port/left side
+        return -this.heelAngle * (180 / Math.PI); // Negate to match nautical convention
     }
     
     getSailAngle() {
