@@ -7,8 +7,11 @@ class BoatModel {
     constructor(scene, options = {}) {
         this.scene = scene;
         
-        // Initialize boat dimensions
+        // Initialize dimensions with custom options if provided
         this.initDimensions(options);
+        
+        // Flag to determine if this is a remote boat (from multiplayer)
+        this.isRemoteBoat = options.isRemoteBoat || false;
         
         // Set custom flag code if provided, otherwise determine from browser
         if (options.flagCode) {
@@ -22,8 +25,13 @@ class BoatModel {
         // Create the boat 3D model
         this.createBoatModel();
         
-        // Initialize debug vectors
+        // Initialize debug vectors only for local boats
         this.initVectorSystem();
+        
+        // For remote boats, always hide vectors
+        if (this.isRemoteBoat) {
+            this.setVectorMode(0); // Set to mode 0 (none) for multiplayer boats
+        }
     }
     
     /**
