@@ -513,8 +513,8 @@ class BoatModel {
         // Position flag to extend from the mast along Z axis
         flagMesh.position.set(0, 0, this.flagWidth/2);
         
-        // Rotate 90 degrees around the mast (Y) axis
-        flagMesh.rotation.y = Math.PI/2;
+        // Rotate 90 degrees around the mast (Y) axis plus 180 degrees to fix mirroring
+        flagMesh.rotation.y = Math.PI/2 + Math.PI;
         
         this.flag.add(flagMesh);
         
