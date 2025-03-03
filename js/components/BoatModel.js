@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 
 /**
  * BoatModel class responsible for the visual representation of the boat
@@ -43,6 +45,9 @@ class BoatModel {
         this.sail = null;
         this.rudder = null;
         this.flag = null;
+        
+        // Custom model path (if provided)
+        this.customHullPath = options.customHullPath || null;
         
         // Boat dimensions
         this.hullLength = options.hullLength || 15;
@@ -260,6 +265,13 @@ class BoatModel {
      * Create the hull of the boat
      */
     createHull() {
+        // If a custom hull model path is provided, load the OBJ model
+        if (this.customHullPath) {
+            this.loadCustomHull(this.customHullPath);
+            return;
+        }
+        
+        // Otherwise create the default hull
         const halfLength = this.hullLength / 2;
         const hullMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
         
@@ -304,6 +316,106 @@ class BoatModel {
         
         this.boatGroup.add(hull);
         this.boatGroup.add(hullLeft);
+    }
+    
+    /**
+     * Load a custom hull model from OBJ file
+     * @param {string} hullPath - Path to the OBJ file
+     */
+    loadCustomHull(hullPath) {
+        // Extract directory and filename from the hull path
+        const lastSlashIndex = hullPath.lastIndexOf('/');
+        const directory = hullPath.substring(0, lastSlashIndex + 1);
+        const filename = hullPath.substring(lastSlashIndex + 1);
+        const filenameMtl = filename.replace('.obj', '.mtl');
+        
+        // Load MTL (material) file first
+        const mtlLoader = new MTLLoader();
+        mtlLoader.setPath(directory);
+        
+        mtlLoader.load(filenameMtl, (materials) => {
+            materials.preload();
+            
+            // Then load OBJ file
+            const objLoader = new OBJLoader();
+            objLoader.setMaterials(materials);
+            objLoader.setPath(directory);
+            
+            objLoader.load(filename, (object) => {
+                // Scale the object if needed
+                const scale = 0.1; // Adjust this value based on your model size
+                object.scale.set(scale, scale, scale);
+                
+                // Rotate the object if needed to match the boat orientation
+                object.rotation.y = Math.PI; // Make it face forward
+                
+                // Position the hull
+                object.position.y = 0.5;
+                
+                // Add the hull to the boat group
+                this.boatGroup.add(object);
+                
+                console.log('Custom hull model loaded successfully:', hullPath);
+            }, 
+            // onProgress callback
+            (xhr) => {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            // onError callback
+            (error) => {
+                console.error('Error loading OBJ file:', error);
+                // Fallback to default hull on error
+                this.customHullPath = null;
+                this.createHull();
+            });
+        }, 
+        // onProgress callback
+        undefined,
+        // onError callback
+        (error) => {
+            console.error('Error loading MTL file:', error);
+            
+            // Try loading without materials
+            console.log('Attempting to load OBJ without materials...');
+            
+            const objLoader = new OBJLoader();
+            objLoader.setPath(directory);
+            
+            objLoader.load(filename, (object) => {
+                // Scale the object if needed
+                const scale = 0.1; // Adjust this value based on your model size
+                object.scale.set(scale, scale, scale);
+                
+                // Use default material
+                object.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        child.material = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                    }
+                });
+                
+                // Rotate the object if needed to match the boat orientation
+                object.rotation.y = Math.PI; // Make it face forward
+                
+                // Position the hull
+                object.position.y = 0.5;
+                
+                // Add the hull to the boat group
+                this.boatGroup.add(object);
+                
+                console.log('Custom hull model loaded successfully (without materials):', hullPath);
+            },
+            // onProgress callback
+            (xhr) => {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            // onError callback
+            (error) => {
+                console.error('Error loading OBJ file without materials:', error);
+                // Fallback to default hull on error
+                this.customHullPath = null;
+                this.createHull();
+            });
+        });
     }
     
     /**

@@ -93,9 +93,10 @@ class Sail {
             rudderEfficiency: 1.25, // Halved from 2.5 to 1.25 to account for lower mass
             inertia: 9,            // Halved from 18 to 9 for extremely quick turning
             heelFactor: 0.12,      // Leaving unchanged
-            heelRecoveryRate: 0.7  // Leaving unchanged
+            heelRecoveryRate: 0.7,  // Leaving unchanged
             
-            // Using all default visual options from BoatModel
+            // Visual options
+            customHullPath: 'assets/models/Boat.obj/a9edbc7c-4ec5-45d8-a165-119bc0a05e40.obj' // Custom hull model path
         };
         this.boat = new Boat(this.scene, this.world, boatOptions);
         

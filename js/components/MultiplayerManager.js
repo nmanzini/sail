@@ -168,6 +168,9 @@ class MultiplayerManager {
             deckColor: 0xD2B48C,  // Tan deck
             sailColor: 0xDCDCDC,  // Light gray sail
             
+            // Use the same custom hull model as the player's boat
+            customHullPath: 'assets/models/Boat.obj/a9edbc7c-4ec5-45d8-a165-119bc0a05e40.obj',
+            
             // Add flag code if provided
             flagCode: boatData.flag || null,
             
