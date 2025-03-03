@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import TimeChallenge from './TimeChallenge.js';
 
 /**
  * UI class for handling all user interface elements
@@ -8,6 +9,7 @@ class UI {
         this.app = app;
         this.boat = app.boat;
         this.world = app.world;
+        this.timeChallenge = new TimeChallenge(this.world, this.boat);
 
         // UI elements
         this.infoPanel = null;
@@ -592,79 +594,87 @@ class UI {
      * Create controls panel
      */
     createControlsPanel() {
-        const controlsPanel = document.createElement('div');
-        controlsPanel.id = 'controls-panel';
-        controlsPanel.style.position = 'absolute';
-        controlsPanel.style.left = '10px';
-        controlsPanel.style.top = '10px'; // Set directly to top of screen
-        controlsPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        controlsPanel.style.color = 'white';
-        controlsPanel.style.padding = '15px';
-        controlsPanel.style.borderRadius = '8px';
-        controlsPanel.style.fontSize = '14px';
-        controlsPanel.style.zIndex = '998';
-        controlsPanel.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
-        controlsPanel.style.transition = 'all 0.2s ease-out';
-        controlsPanel.style.width = 'auto';
+        // Create container for challenge controls
+        const challengeContainer = document.createElement('div');
+        challengeContainer.style.position = 'absolute';
+        challengeContainer.style.left = '10px';
+        challengeContainer.style.top = '10px';
+        challengeContainer.style.display = 'flex';
+        challengeContainer.style.flexDirection = 'column';
+        challengeContainer.style.gap = '10px';
+        challengeContainer.style.zIndex = '998';
 
-        // Create header with collapse button
-        const header = document.createElement('div');
-        header.style.display = 'flex';
-        header.style.justifyContent = 'space-between';
-        header.style.alignItems = 'center';
-        header.style.marginBottom = '10px';
-        header.style.cursor = 'pointer';
-        header.style.userSelect = 'none';
+        // Create start/stop button
+        const startButton = document.createElement('div');
+        startButton.id = 'start-challenge-button';
+        startButton.style.backgroundColor = '#3399ff';
+        startButton.style.color = 'white';
+        startButton.style.padding = '15px 30px';
+        startButton.style.borderRadius = '8px';
+        startButton.style.fontSize = '18px';
+        startButton.style.fontWeight = 'bold';
+        startButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        startButton.style.transition = 'all 0.2s ease-out';
+        startButton.style.cursor = 'pointer';
+        startButton.style.userSelect = 'none';
+        startButton.textContent = 'Start Challenge';
+        startButton.dataset.state = 'start';
 
-        const title = document.createElement('span');
-        title.textContent = 'Controls';
-        title.style.fontWeight = 'bold';
-        header.appendChild(title);
+        // Create timer display
+        const timerDisplay = document.createElement('div');
+        timerDisplay.id = 'challenge-timer';
+        timerDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        timerDisplay.style.color = 'white';
+        timerDisplay.style.padding = '10px 20px';
+        timerDisplay.style.borderRadius = '8px';
+        timerDisplay.style.fontSize = '24px';
+        timerDisplay.style.fontFamily = 'monospace';
+        timerDisplay.style.textAlign = 'center';
+        timerDisplay.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        timerDisplay.style.display = 'none'; // Hidden by default
+        timerDisplay.textContent = '00:00.0';
 
-        const collapseIcon = document.createElement('span');
-        collapseIcon.textContent = '−';
-        collapseIcon.style.fontSize = '20px';
-        collapseIcon.style.fontWeight = 'bold';
-        collapseIcon.style.marginLeft = '10px';
-        header.appendChild(collapseIcon);
+        // Add hover effect to button
+        startButton.addEventListener('mouseover', () => {
+            startButton.style.backgroundColor = startButton.dataset.state === 'start' ? '#4da6ff' : '#ff4d4d';
+            startButton.style.transform = 'scale(1.05)';
+        });
 
-        controlsPanel.appendChild(header);
+        startButton.addEventListener('mouseout', () => {
+            startButton.style.backgroundColor = startButton.dataset.state === 'start' ? '#3399ff' : '#ff3333';
+            startButton.style.transform = 'scale(1)';
+        });
 
-        const content = document.createElement('div');
-        content.style.marginTop = '10px';
-        content.innerHTML = `
-            <div style="margin-bottom: 15px;">
-                <h4 style="margin: 0 0 10px 0; color: #3399ff;">Keyboard Controls</h4>
-                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">A ←  /  D →</span> Turn rudder left/right</p>
-                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">W ↑  /  S ↓</span> Increase/decrease sail angle</p>
-                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">C:</span> Toggle between orbit and first-person camera</p>
-                <p style="margin: 5px 0;"><span style="color: #a5d8ff;">V:</span> Cycle through vector visualization modes</p>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <h4 style="margin: 0 0 10px 0; color: #3399ff;">Mouse Controls</h4>
-                <p style="margin: 5px 0;">Left click + drag: Rotate camera</p>
-                <p style="margin: 5px 0;">Right click + drag: Pan camera</p>
-                <p style="margin: 5px 0;">Scroll: Zoom camera</p>
-            </div>
-        `;
+        // Add click handler
+        startButton.addEventListener('click', () => {
+            if (startButton.dataset.state === 'start') {
+                this.startTimeChallenge();
+                startButton.textContent = 'Stop Challenge';
+                startButton.dataset.state = 'stop';
+                startButton.style.backgroundColor = '#ff3333';
+                timerDisplay.style.display = 'block';
+            } else {
+                this.stopTimeChallenge();
+                startButton.textContent = 'Start Challenge';
+                startButton.dataset.state = 'start';
+                startButton.style.backgroundColor = '#3399ff';
+                timerDisplay.style.display = 'none';
+            }
+        });
 
-        controlsPanel.appendChild(content);
+        // Add elements to container
+        challengeContainer.appendChild(startButton);
+        challengeContainer.appendChild(timerDisplay);
+        document.body.appendChild(challengeContainer);
+    }
 
-        // Start in collapsed state
-        let isCollapsed = true;
-        content.style.display = 'none';
-        collapseIcon.textContent = '+';
-
-        // Toggle function for expand/collapse
-        const toggleCollapse = () => {
-            isCollapsed = !isCollapsed;
-            content.style.display = isCollapsed ? 'none' : 'block';
-            collapseIcon.textContent = isCollapsed ? '+' : '−';
-        };
-
-        header.addEventListener('click', toggleCollapse);
-
-        document.body.appendChild(controlsPanel);
+    /**
+     * Stop the time challenge
+     */
+    stopTimeChallenge() {
+        if (this.timeChallenge.isActive) {
+            this.timeChallenge.stop();
+        }
     }
 
     /**
@@ -695,6 +705,11 @@ class UI {
         const speedValue = document.getElementById('speed-value');
         if (speedValue) {
             speedValue.textContent = `${this.boat.getSpeedInKnots().toFixed(1)} knots`;
+        }
+
+        // Update time challenge if active
+        if (this.timeChallenge.isActive) {
+            this.timeChallenge.update(1/60); // Assuming 60fps
         }
     }
 
@@ -987,6 +1002,14 @@ class UI {
                 `
             },
             {
+                title: 'Time Challenge',
+                content: `
+                    <p style="margin: 5px 0;">• Click the "Start Challenge" button in the top left</p>
+                    <p style="margin: 5px 0;">• Sail through the checkpoints as fast as possible</p>
+                    <p style="margin: 5px 0;">• Press ESC or click "Stop Challenge" to cancel</p>
+                `
+            },
+            {
                 title: 'Sailing Tips',
                 content: `
                     <p style="margin: 5px 0;">• Keep the sail at an angle to the wind</p>
@@ -1085,6 +1108,83 @@ class UI {
         });
 
         document.body.appendChild(tutorial);
+    }
+
+    /**
+     * Start the time challenge
+     */
+    startTimeChallenge() {
+        // Create a modal dialog to explain the challenge
+        const modal = document.createElement('div');
+        modal.id = 'time-challenge-modal';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+        modal.style.display = 'flex';
+        modal.style.flexDirection = 'column';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '2000';
+        modal.style.cursor = 'pointer';
+        modal.style.color = 'white';
+        modal.style.fontFamily = 'Arial, sans-serif';
+        modal.style.padding = '20px';
+        modal.style.textAlign = 'center';
+
+        const content = document.createElement('div');
+        content.style.maxWidth = '500px';
+        content.style.width = '100%';
+        content.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        content.style.padding = '20px';
+        content.style.borderRadius = '8px';
+        content.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+
+        content.innerHTML = `
+            <h2 style="color: #3399ff; margin-bottom: 20px;">Time Challenge</h2>
+            <p style="margin-bottom: 15px;">Sail through 5 checkpoints as fast as possible!</p>
+            <p style="margin-bottom: 15px;">• Look for the glowing green rings with buoys</p>
+            <p style="margin-bottom: 15px;">• The final checkpoint will be marked in red</p>
+            <p style="margin-bottom: 15px;">• Your time will be recorded when you finish</p>
+            <p style="margin-bottom: 20px;">• Press ESC to cancel the challenge</p>
+            <button id="start-challenge-btn" style="
+                background-color: #3399ff;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+                transition: background-color 0.2s;
+            ">Start Challenge</button>
+        `;
+
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+
+        // Add click handler to start button
+        const startButton = document.getElementById('start-challenge-btn');
+        startButton.addEventListener('click', () => {
+            modal.remove();
+            // TODO: Initialize the time challenge
+            this.initializeTimeChallenge();
+        });
+
+        // Add click handler to modal background to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    /**
+     * Initialize the time challenge
+     */
+    initializeTimeChallenge() {
+        this.timeChallenge.start();
     }
 }
 
