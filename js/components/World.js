@@ -13,6 +13,8 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
  * - Water reacts to sun position with appropriate reflections
  */
 class World {
+    static showGrid = true;  // Static boolean to control grid visibility
+    
     constructor(scene, camera = null) {
         this.scene = scene;
         this.camera = camera; // Store camera reference
@@ -114,6 +116,44 @@ class World {
 
         this.water.rotation.x = -Math.PI / 2;
         this.scene.add(this.water);
+        
+        // Add grid if enabled
+        if (World.showGrid) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width/2, 0);
+            ctx.lineTo(canvas.width/2, canvas.height);
+            ctx.moveTo(0, canvas.height/2);
+            ctx.lineTo(canvas.width, canvas.height/2);
+            ctx.stroke();
+            
+            const gridTexture = new THREE.CanvasTexture(canvas);
+            gridTexture.wrapS = gridTexture.wrapT = THREE.RepeatWrapping;
+            gridTexture.repeat.set(200, 200);
+            
+            const gridMaterial = new THREE.MeshBasicMaterial({
+                map: gridTexture,
+                transparent: true,
+                depthWrite: false,
+                depthTest: false,
+                blending: THREE.NormalBlending,
+                side: THREE.DoubleSide
+            });
+            
+            const gridMesh = new THREE.Mesh(waterGeometry, gridMaterial);
+            gridMesh.rotation.x = -Math.PI / 2;
+            gridMesh.position.y = 0.2;
+            gridMesh.renderOrder = 1;
+            this.scene.add(gridMesh);
+        }
         
         // Set initial wave direction
         this.setWaveDirection(this.waveDirection);
