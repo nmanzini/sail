@@ -4,12 +4,25 @@ import * as THREE from 'three';
 /**
  * LightingControls class for creating and managing lighting control panel
  * Provides sliders for sun position, sky properties, and water parameters
+ * Only available when running on localhost
  */
 class LightingControls {
     constructor(world) {
         this.world = world;
         this.gui = null;
         this.isVisible = false;
+        
+        // Check if we're on localhost
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1' ||
+                          window.location.hostname === '';
+        
+        // Only initialize if we're on localhost
+        if (!isLocalhost) {
+            console.log('Lighting controls disabled (not on localhost)');
+            return;
+        }
+        
         this.parameters = {
             // Sky parameters
             sky: {
@@ -56,6 +69,9 @@ class LightingControls {
      * Apply all parameters to the world
      */
     applyAllParameters() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         this.updateSky();
         this.updateSunPosition();
         this.updateWater();
@@ -67,6 +83,9 @@ class LightingControls {
      * Create a button to toggle the lighting controls panel
      */
     createToggleButton() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         const button = document.createElement('button');
         button.id = 'lighting-controls-toggle';
         button.innerHTML = '💡';
@@ -105,6 +124,9 @@ class LightingControls {
      * Toggle the visibility of the lighting controls panel
      */
     togglePanel() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         if (this.isVisible) {
             this.hidePanel();
         } else {
@@ -117,6 +139,9 @@ class LightingControls {
      * Show the lighting controls panel
      */
     showPanel() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         if (!this.gui) {
             this.createPanel();
         } else {
@@ -128,6 +153,9 @@ class LightingControls {
      * Hide the lighting controls panel
      */
     hidePanel() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         if (this.gui) {
             this.gui.domElement.style.display = 'none';
         }
@@ -137,6 +165,9 @@ class LightingControls {
      * Create the lighting controls panel with all sliders
      */
     createPanel() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         this.gui = new GUI({ title: 'Lighting Controls' });
         
         // Sky folder
@@ -222,6 +253,9 @@ class LightingControls {
      * Apply custom styling to the GUI
      */
     styleGUI() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.gui) return;
+        
         const guiElement = this.gui.domElement;
         guiElement.style.position = 'absolute';
         guiElement.style.top = '50px';
@@ -235,6 +269,9 @@ class LightingControls {
      * Update the sky parameters
      */
     updateSky() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         const sky = this.world.sky;
         if (!sky) return;
         
@@ -249,6 +286,9 @@ class LightingControls {
      * Update the sun position
      */
     updateSunPosition() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         this.world.updateSunPosition({
             elevation: this.parameters.sky.elevation,
             azimuth: this.parameters.sky.azimuth
@@ -259,6 +299,9 @@ class LightingControls {
      * Update the water parameters
      */
     updateWater() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         this.world.setSeaParameters({
             distortionScale: this.parameters.water.distortionScale,
             size: this.parameters.water.size,
@@ -270,6 +313,9 @@ class LightingControls {
      * Update the wave animation speed
      */
     updateWaterSpeed() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         this.world.setWaveSpeed(this.parameters.water.waveSpeed);
     }
     
@@ -277,6 +323,9 @@ class LightingControls {
      * Update the wave direction
      */
     updateWaveDirection() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters) return;
+        
         const direction = new THREE.Vector2(
             this.parameters.water.waveDirectionX,
             this.parameters.water.waveDirectionY
@@ -288,6 +337,9 @@ class LightingControls {
      * Apply a direction preset
      */
     applyDirectionPreset() {
+        // If not initialized (not on localhost), don't do anything
+        if (!this.parameters || !this.directionPresets) return;
+        
         const preset = this.directionPresets[this.parameters.water.directionPreset];
         if (preset) {
             this.parameters.water.waveDirectionX = preset.x;
