@@ -1,13 +1,23 @@
 import * as THREE from 'three';
+import { Water } from 'three/addons/objects/Water.js';
+import { Sky } from 'three/addons/objects/Sky.js';
 
 /**
  * World class representing the environment (sea, wind, islands)
+ * 
+ * Uses Three.js Water shader for realistic ocean rendering:
+ * - Requires textures/waternormals.jpg for the water normal map
+ * - Dynamically animates water surface with time-based distortion
+ * - Includes sky with atmospheric scattering and sun position control
+ * - Water reacts to sun position with appropriate reflections
  */
 class World {
     constructor(scene, camera = null) {
         this.scene = scene;
         this.camera = camera; // Store camera reference
         this.water = null;
+        this.sky = null;
+        this.sun = new THREE.Vector3(100, 100, 50);
         this.islands = [];
         this.windDirection = new THREE.Vector3(0, 0, 1); // Wind from South (blowing northward)
         this.windSpeed = 5.0; // Increased default wind speed for better sailing
@@ -24,7 +34,8 @@ class World {
      */
     init() {
         this.createLighting();
-        this.createSeaWithPattern();
+        this.createSea();
+        this.createSky();
         this.createIslands();
         this.createWindParticles();
     }
@@ -39,76 +50,58 @@ class World {
         
         // Add directional light (sun)
         const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(100, 100, 50);
+        directionalLight.position.copy(this.sun);
         this.scene.add(directionalLight);
     }
     
     /**
-     * Create sea with pattern texture
+     * Create realistic ocean using the Water shader
      */
-    createSeaWithPattern() {
-        // Create a canvas for the sea pattern
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const ctx = canvas.getContext('2d');
-        
-        // Fill background
-        ctx.fillStyle = '#0077be';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw grid pattern
-        ctx.strokeStyle = '#0099ff';
-        ctx.lineWidth = 2;
-        
-        // Draw horizontal lines
-        const gridSize = 64;
-        for (let y = 0; y < canvas.height; y += gridSize) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(canvas.width, y);
-            ctx.stroke();
-        }
-        
-        // Draw vertical lines
-        for (let x = 0; x < canvas.width; x += gridSize) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.height);
-            ctx.stroke();
-        }
-        
-        // Add some wave-like circles
-        ctx.strokeStyle = '#0088cc';
-        for (let i = 0; i < 50; i++) {
-            const x = Math.random() * canvas.width;
-            const y = Math.random() * canvas.height;
-            const radius = Math.random() * 10 + 5;
-            
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        
-        // Create texture from canvas
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(100, 100);
-        
-        // Create sea plane with the pattern texture
-        const waterGeometry = new THREE.PlaneGeometry(10000, 10000, 50, 50);
-        const waterMaterial = new THREE.MeshPhongMaterial({ 
-            color: 0x0077be,
-            shininess: 100,
-            specular: 0x111111,
-            map: texture
-        });
-        
-        this.water = new THREE.Mesh(waterGeometry, waterMaterial);
+    createSea() {
+        const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
+
+        this.water = new Water(
+            waterGeometry,
+            {
+                textureWidth: 512,
+                textureHeight: 512,
+                waterNormals: new THREE.TextureLoader().load('textures/waternormals.jpg', function(texture) {
+                    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                }),
+                sunDirection: this.sun.clone().normalize(),
+                sunColor: 0xffffff,
+                waterColor: 0x187db2,
+                distortionScale: 5,
+                size: 1.0,
+                fog: false
+            }
+        );
+
         this.water.rotation.x = -Math.PI / 2;
-        this.water.material.map.offset = new THREE.Vector2(0, 0);
         this.scene.add(this.water);
+    }
+    
+    /**
+     * Create skybox using the Sky shader
+     */
+    createSky() {
+        this.sky = new Sky();
+        this.sky.scale.setScalar(10000);
+        this.scene.add(this.sky);
+
+        const skyUniforms = this.sky.material.uniforms;
+
+        // Set initial sky parameters
+        skyUniforms['turbidity'].value = 5;
+        skyUniforms['rayleigh'].value = 1.5;
+        skyUniforms['mieCoefficient'].value = 0.01;
+        skyUniforms['mieDirectionalG'].value = 0.3;
+        
+        // Set initial sun position (will be updated properly in updateSunPosition)
+        this.updateSunPosition({
+            elevation: 4,
+            azimuth: 90
+        });
     }
     
     /**
@@ -451,8 +444,65 @@ class World {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
+        // Update water animation
+        if (this.water) {
+            this.water.material.uniforms['time'].value += deltaTime;
+        }
+        
         // Update wind particles
         this.updateWindParticles(deltaTime);
+    }
+    
+    /**
+     * Set the sea parameters
+     * @param {Object} params - Parameters for the sea
+     * @param {number} params.distortionScale - The distortion scale of the water
+     * @param {number} params.size - The size of the water ripples
+     * @param {number} params.waterColor - The color of the water (hex color)
+     */
+    setSeaParameters(params = {}) {
+        if (!this.water) return;
+        
+        const waterUniforms = this.water.material.uniforms;
+        
+        if (params.distortionScale !== undefined) {
+            waterUniforms.distortionScale.value = params.distortionScale;
+        }
+        
+        if (params.size !== undefined) {
+            waterUniforms.size.value = params.size;
+        }
+        
+        if (params.waterColor !== undefined) {
+            waterUniforms.waterColor.value.set(params.waterColor);
+        }
+    }
+    
+    /**
+     * Update the sun position
+     * @param {Object} params - Parameters for the sun position
+     * @param {number} params.elevation - Sun elevation in degrees
+     * @param {number} params.azimuth - Sun azimuth in degrees
+     */
+    updateSunPosition(params = {}) {
+        const elevation = params.elevation || 45;
+        const azimuth = params.azimuth || 180;
+        
+        // Convert to radians
+        const phi = THREE.MathUtils.degToRad(90 - elevation);
+        const theta = THREE.MathUtils.degToRad(azimuth);
+        
+        // Set new sun position from spherical coordinates
+        this.sun.setFromSphericalCoords(1000, phi, theta);
+        
+        // Update sky and water with new sun position
+        if (this.sky) {
+            this.sky.material.uniforms['sunPosition'].value.copy(this.sun);
+        }
+        
+        if (this.water) {
+            this.water.material.uniforms['sunDirection'].value.copy(this.sun).normalize();
+        }
     }
     
     /**

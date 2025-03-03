@@ -6,6 +6,7 @@ import MobileControls from './components/MobileControls.js';
 import AudioManager from './components/AudioManager.js';
 import CameraController from './components/CameraController.js';
 import MultiplayerManager from './components/MultiplayerManager.js';
+import LightingControls from './components/LightingControls.js';
 
 /**
  * Main application class for the sailing simulator
@@ -24,6 +25,7 @@ class Sail {
         this.audio = null;
         this.cameraController = null;
         this.multiplayer = null;
+        this.lightingControls = null;
         
         // Multiplayer server configuration
         this.multiplayerEnabled = true;
@@ -112,6 +114,9 @@ class Sail {
         
         // Add mobile controls if needed
         this.mobileControls = new MobileControls(this);
+        
+        // Initialize lighting controls
+        this.lightingControls = new LightingControls(this.world);
         
         // Handle window resize
         window.addEventListener('resize', this.onWindowResize.bind(this));
