@@ -114,6 +114,9 @@ class UI {
         }
         this.createAuthorOverlay(authorName);
 
+        // Create tutorial overlay
+        this.createTutorialOverlay();
+
         // Store references to all elements we'll need to update
         this.cacheElementReferences();
 
@@ -913,6 +916,175 @@ class UI {
             authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
             authorOverlay.style.transform = 'translateX(-50%) scale(1)';
         });
+    }
+
+    /**
+     * Create a tutorial overlay that explains sailing controls
+     */
+    createTutorialOverlay() {
+        const tutorial = document.createElement('div');
+        tutorial.id = 'tutorial-overlay';
+        tutorial.style.position = 'fixed';
+        tutorial.style.top = '0';
+        tutorial.style.left = '0';
+        tutorial.style.width = '100%';
+        tutorial.style.height = '100%';
+        tutorial.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+        tutorial.style.display = 'flex';
+        tutorial.style.flexDirection = 'column';
+        tutorial.style.alignItems = 'center';
+        tutorial.style.justifyContent = 'center';
+        tutorial.style.zIndex = '2000';
+        tutorial.style.cursor = 'pointer';
+        tutorial.style.color = 'white';
+        tutorial.style.fontFamily = 'Arial, sans-serif';
+        tutorial.style.padding = '0';
+        tutorial.style.textAlign = 'center';
+        tutorial.style.overflowY = 'auto';
+
+        // Create content container with responsive width
+        const content = document.createElement('div');
+        content.style.maxWidth = '600px';
+        content.style.width = '100%';
+        content.style.margin = '0';
+        content.style.padding = '20px';
+        content.style.display = 'flex';
+        content.style.flexDirection = 'column';
+        content.style.alignItems = 'center';
+        content.style.justifyContent = 'center';
+
+        // Add title with responsive font size
+        const title = document.createElement('h1');
+        title.textContent = 'Welcome to Sail!';
+        title.style.marginBottom = '30px';
+        title.style.color = '#3399ff';
+        title.style.fontSize = 'clamp(24px, 5vw, 32px)';
+        content.appendChild(title);
+
+        // Detect if user is on mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // Add sections based on platform
+        const sections = [
+            {
+                title: isMobile ? 'Touch Controls' : 'Keyboard Controls',
+                content: isMobile ? `
+                    <p style="margin: 5px 0;">• Left joystick: Turn rudder left/right</p>
+                    <p style="margin: 5px 0;">• Right joystick: Pull in/push out sail</p>
+                ` : `
+                    <p style="margin: 5px 0;">• A/D or ←/→ : Turn rudder left/right</p>
+                    <p style="margin: 5px 0;">• W/S or ↑/↓ : Adjust sail angle</p>
+                `
+            },
+            {
+                title: 'Camera Control',
+                content: isMobile ? `
+                    <p style="margin: 5px 0;">• Drag to rotate camera view</p>
+                    <p style="margin: 5px 0;">• Pinch in/out to zoom</p>
+                ` : `
+                    <p style="margin: 5px 0;">• Click and drag to rotate camera view</p>
+                    <p style="margin: 5px 0;">• Scroll to zoom in/out</p>
+                `
+            },
+            {
+                title: 'Sailing Tips',
+                content: `
+                    <p style="margin: 5px 0;">• Keep the sail at an angle to the wind</p>
+                    <p style="margin: 5px 0;">• Use the rudder to maintain course</p>
+                    <p style="margin: 5px 0;">• Watch the wind direction indicator (blue arrow)</p>
+                    <p style="margin: 5px 0;">• Try different sail angles to find the best speed</p>
+                `
+            }
+        ];
+
+        sections.forEach(section => {
+            const sectionDiv = document.createElement('div');
+            sectionDiv.style.marginBottom = '25px';
+            sectionDiv.style.width = '100%';
+            sectionDiv.style.maxWidth = '400px';
+            
+            const sectionTitle = document.createElement('h2');
+            sectionTitle.textContent = section.title;
+            sectionTitle.style.marginBottom = '10px';
+            sectionTitle.style.color = '#a5d8ff';
+            sectionTitle.style.fontSize = 'clamp(18px, 4vw, 24px)';
+            
+            const sectionContent = document.createElement('div');
+            sectionContent.innerHTML = section.content;
+            sectionContent.style.lineHeight = '1.4';
+            sectionContent.style.fontSize = 'clamp(14px, 3vw, 16px)';
+            
+            sectionDiv.appendChild(sectionTitle);
+            sectionDiv.appendChild(sectionContent);
+            content.appendChild(sectionDiv);
+        });
+
+        // Add tap to dismiss message with responsive styling
+        const dismissMessage = document.createElement('div');
+        dismissMessage.textContent = 'Tap anywhere to start sailing';
+        dismissMessage.style.marginTop = '20px';
+        dismissMessage.style.color = '#a5d8ff';
+        dismissMessage.style.fontStyle = 'italic';
+        dismissMessage.style.fontSize = 'clamp(14px, 3vw, 16px)';
+        content.appendChild(dismissMessage);
+
+        tutorial.appendChild(content);
+
+        // Add responsive styles
+        const style = document.createElement('style');
+        style.textContent = `
+            @media (max-width: 480px) {
+                #tutorial-overlay {
+                    padding: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                #tutorial-overlay > div {
+                    padding: 15px;
+                    width: 100%;
+                    max-width: 100%;
+                    box-sizing: border-box;
+                }
+                #tutorial-overlay h1 {
+                    margin-bottom: 20px;
+                }
+                #tutorial-overlay > div > div {
+                    margin-bottom: 20px;
+                    width: 100%;
+                    padding: 0 15px;
+                    box-sizing: border-box;
+                }
+                #tutorial-overlay p {
+                    margin: 5px 0;
+                }
+            }
+            @media (max-height: 600px) {
+                #tutorial-overlay {
+                    padding: 0;
+                    align-items: flex-start;
+                    justify-content: flex-start;
+                }
+                #tutorial-overlay h1 {
+                    margin-bottom: 15px;
+                }
+                #tutorial-overlay > div > div {
+                    margin-bottom: 15px;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Add click handler to dismiss
+        tutorial.addEventListener('click', () => {
+            tutorial.style.opacity = '0';
+            tutorial.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(() => {
+                tutorial.remove();
+            }, 300);
+        });
+
+        document.body.appendChild(tutorial);
     }
 }
 
