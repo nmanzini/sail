@@ -30,13 +30,13 @@ class Sail {
         // Multiplayer server configuration
         this.multiplayerEnabled = true;
         
-        // Choose the appropriate WebSocket server URL based on the environment
-        const isLocalhost = window.location.hostname === 'localhost' || 
+        // Check if we're running on localhost
+        this.isLocalhost = window.location.hostname === 'localhost' || 
                             window.location.hostname === '127.0.0.1' ||
                             window.location.hostname === '';
         
         // Use local server when running locally, Heroku server when deployed
-        this.serverUrl = isLocalhost 
+        this.serverUrl = this.isLocalhost 
             ? 'ws://localhost:8765' 
             : 'wss://sail-server-eb8a39ba5a31.herokuapp.com';
         
@@ -121,8 +121,12 @@ class Sail {
         // Add mobile controls if needed
         this.mobileControls = new MobileControls(this);
         
-        // Initialize lighting controls
-        this.lightingControls = new LightingControls(this.world);
+        // Initialize lighting controls only on localhost
+        if (this.isLocalhost) {
+            // Only create lighting controls on localhost for development
+            this.lightingControls = new LightingControls(this.world);
+            console.log('Lighting controls enabled (localhost only)');
+        }
         
         // Handle window resize
         window.addEventListener('resize', this.onWindowResize.bind(this));
