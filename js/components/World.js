@@ -72,6 +72,9 @@ class World {
     createSea() {
         const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
 
+        // Define a render target for water reflections that excludes the wind particles
+        const reflectionRenderTarget = new THREE.WebGLRenderTarget(512, 512);
+        
         this.water = new Water(
             waterGeometry,
             {
@@ -88,6 +91,26 @@ class World {
                 fog: false
             }
         );
+        
+        // Configure the water's internal renderer to exclude objects on layer 1
+        if (this.water.material.uniforms.mirrorSampler) {
+            const originalOnBeforeRender = this.water.onBeforeRender;
+            this.water.onBeforeRender = (renderer, scene, camera) => {
+                // Save the original camera layers
+                const originalCameraLayers = camera.layers.mask;
+                
+                // Set the camera to not see layer 1 (wind particles)
+                camera.layers.disable(1);
+                
+                // Call the original onBeforeRender
+                if (originalOnBeforeRender) {
+                    originalOnBeforeRender(renderer, scene, camera);
+                }
+                
+                // Restore the original camera layers
+                camera.layers.mask = originalCameraLayers;
+            };
+        }
 
         this.water.rotation.x = -Math.PI / 2;
         this.scene.add(this.water);
@@ -172,11 +195,21 @@ class World {
     }
     
     /**
-     * Set the camera reference (if not set in constructor)
-     * @param {THREE.Camera} camera - The camera to use for wind particle visibility
+     * Set camera reference
+     * @param {THREE.Camera} camera - The camera to use for this world
      */
     setCamera(camera) {
         this.camera = camera;
+        
+        // Ensure the camera can see all layers (including wind particles on layer 1)
+        if (this.camera) {
+            this.camera.layers.enableAll();
+        }
+        
+        // Create wind particles now that we have the camera
+        if (!this.trailSystem) {
+            this.createWindParticles();
+        }
     }
     
     /**
@@ -301,6 +334,10 @@ class World {
         });
         
         this.trailSystem = new THREE.LineSegments(trails, trailMaterial);
+        
+        // Set the trail system to be on layer 2 (bit position 1)
+        this.trailSystem.layers.set(1);
+        
         this.scene.add(this.trailSystem);
     }
     
