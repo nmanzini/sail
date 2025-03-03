@@ -20,7 +20,16 @@ class World {
         this.sky = null;
         this.sun = new THREE.Vector3(100, 100, 50);
         this.islands = [];
-        this.windDirection = new THREE.Vector3(0, 0, 1); // Wind from South (blowing northward)
+        
+        // Set default wind direction to 220 degrees (from southwest)
+        // Convert to radians and create normalized direction vector
+        const windAngle = 220 * Math.PI / 180;
+        this.windDirection = new THREE.Vector3(
+            Math.sin(windAngle),  // X component
+            0,                    // Y component (horizontal wind)
+            Math.cos(windAngle)   // Z component
+        ).normalize();
+        
         this.windSpeed = 5.0; // Increased default wind speed for better sailing
         this.windParticles = null;
         this.trailSystem = null; // Add trail system reference

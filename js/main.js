@@ -68,7 +68,13 @@ class Sail {
         this.world = new World(this.scene, null); // Will set camera reference later
         
         // Set initial wind to a stronger value for testing
-        const initialWindDirection = new THREE.Vector3(0, 0, 1); // Wind blowing from south to north
+        // Wind direction from 220 degrees (southwest)
+        const windAngle = 220 * Math.PI / 180;
+        const initialWindDirection = new THREE.Vector3(
+            Math.sin(windAngle),  // X component
+            0,                    // Y component (horizontal wind)
+            Math.cos(windAngle)   // Z component
+        ).normalize();
         this.world.setWind(initialWindDirection, 15); // Stronger wind for better visibility of forces and easier movement
         
         // Initialize audio system earlier in the loading process (before boat creation)
