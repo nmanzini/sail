@@ -1,4 +1,5 @@
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import * as THREE from 'three';
 
 /**
  * LightingControls class for creating and managing lighting control panel
@@ -22,9 +23,26 @@ class LightingControls {
             // Water parameters
             water: {
                 distortionScale: 5,
-                size: 1.0,
-                waterColor: 0x187db2
+                size: 2.0,
+                waterColor: 0x187db2,
+                waveSpeed: 0.5,
+                waveDirectionX: 1.0,
+                waveDirectionY: 1.0,
+                // Direction presets (not displayed in UI)
+                directionPreset: 'NE'
             }
+        };
+        
+        // Direction preset options
+        this.directionPresets = {
+            'N': { x: 0, y: 1 },   // North
+            'NE': { x: 1, y: 1 },  // Northeast
+            'E': { x: 1, y: 0 },   // East
+            'SE': { x: 1, y: -1 }, // Southeast
+            'S': { x: 0, y: -1 },  // South
+            'SW': { x: -1, y: -1 },// Southwest
+            'W': { x: -1, y: 0 },  // West
+            'NW': { x: -1, y: 1 }  // Northwest
         };
         
         // Apply the parameters immediately
@@ -41,6 +59,8 @@ class LightingControls {
         this.updateSky();
         this.updateSunPosition();
         this.updateWater();
+        this.updateWaterSpeed();
+        this.updateWaveDirection();
     }
     
     /**
@@ -164,11 +184,35 @@ class LightingControls {
         waterFolder.addColor(this.parameters.water, 'waterColor')
             .name('Water Color')
             .onChange(() => this.updateWater());
+            
+        // Add a slider for wave animation speed
+        waterFolder.add(this.parameters.water, 'waveSpeed', 0.05, 2, 0.05)
+            .name('Wave Speed')
+            .onChange(() => this.updateWaterSpeed());
+        
+        // Wave direction controls
+        const waveDirectionFolder = waterFolder.addFolder('Wave Direction');
+        
+        // Add a dropdown for direction presets
+        waveDirectionFolder.add(this.parameters.water, 'directionPreset', 
+            Object.keys(this.directionPresets))
+            .name('Direction Preset')
+            .onChange(() => this.applyDirectionPreset());
+        
+        // Add sliders for fine-tuning wave direction
+        waveDirectionFolder.add(this.parameters.water, 'waveDirectionX', -1, 1, 0.1)
+            .name('X Direction')
+            .onChange(() => this.updateWaveDirection());
+            
+        waveDirectionFolder.add(this.parameters.water, 'waveDirectionY', -1, 1, 0.1)
+            .name('Y Direction')
+            .onChange(() => this.updateWaveDirection());
         
         // Open all folders by default
         skyFolder.open();
         sunFolder.open();
         waterFolder.open();
+        waveDirectionFolder.open();
         
         // Style the GUI
         this.styleGUI();
@@ -220,6 +264,57 @@ class LightingControls {
             size: this.parameters.water.size,
             waterColor: this.parameters.water.waterColor
         });
+    }
+    
+    /**
+     * Update the wave animation speed
+     */
+    updateWaterSpeed() {
+        this.world.setWaveSpeed(this.parameters.water.waveSpeed);
+    }
+    
+    /**
+     * Update the wave direction
+     */
+    updateWaveDirection() {
+        const direction = new THREE.Vector2(
+            this.parameters.water.waveDirectionX,
+            this.parameters.water.waveDirectionY
+        );
+        this.world.setWaveDirection(direction);
+    }
+    
+    /**
+     * Apply a direction preset
+     */
+    applyDirectionPreset() {
+        const preset = this.directionPresets[this.parameters.water.directionPreset];
+        if (preset) {
+            this.parameters.water.waveDirectionX = preset.x;
+            this.parameters.water.waveDirectionY = preset.y;
+            this.updateWaveDirection();
+            
+            // Update the GUI if it exists
+            if (this.gui) {
+                // Find and update the X and Y direction controllers
+                const updateControllers = (controllers) => {
+                    for (const controller of controllers) {
+                        if (controller.property === 'waveDirectionX' || 
+                            controller.property === 'waveDirectionY') {
+                            controller.updateDisplay();
+                        }
+                        // Check if this is a folder with more controllers
+                        if (controller.folders) {
+                            for (const folder of controller.folders) {
+                                updateControllers(folder.controllers);
+                            }
+                        }
+                    }
+                };
+                
+                updateControllers(this.gui.controllers);
+            }
+        }
     }
 }
 

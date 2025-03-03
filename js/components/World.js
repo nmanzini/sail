@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
 import { Sky } from 'three/addons/objects/Sky.js';
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 /**
  * World class representing the environment (sea, wind, islands)
@@ -24,6 +25,8 @@ class World {
         this.windParticles = null;
         this.trailSystem = null; // Add trail system reference
         this.windVisibilityRadius = 800; // Increased radius for wider view of wind field
+        this.waveSpeedFactor = 0.5; // Updated wave speed as requested
+        this.waveDirection = new THREE.Vector2(1, 1); // Default wave direction (diagonal)
         
         // Initialize the world
         this.init();
@@ -72,13 +75,16 @@ class World {
                 sunColor: 0xffffff,
                 waterColor: 0x187db2,
                 distortionScale: 5,
-                size: 1.0,
+                size: 2.0,
                 fog: false
             }
         );
 
         this.water.rotation.x = -Math.PI / 2;
         this.scene.add(this.water);
+        
+        // Set initial wave direction
+        this.setWaveDirection(this.waveDirection);
     }
     
     /**
@@ -444,9 +450,16 @@ class World {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        // Update water animation
+        // Update water animation at a slower pace
         if (this.water) {
-            this.water.material.uniforms['time'].value += deltaTime;
+            this.water.material.uniforms['time'].value += deltaTime * this.waveSpeedFactor;
+            
+            // Update the direction for wave movement
+            const time = this.water.material.uniforms['time'].value;
+            this.water.material.uniforms['normalSampler'].value.offset.set(
+                time * this.waveDirection.x * 0.05, 
+                time * this.waveDirection.y * 0.05
+            );
         }
         
         // Update wind particles
@@ -519,6 +532,44 @@ class World {
      */
     getWindVisibilityRadius() {
         return this.windVisibilityRadius;
+    }
+    
+    /**
+     * Set the wave animation speed
+     * @param {number} speedFactor - Multiplier for wave animation speed (1.0 = normal speed, <1.0 = slower, >1.0 = faster)
+     */
+    setWaveSpeed(speedFactor) {
+        this.waveSpeedFactor = Math.max(0.05, speedFactor); // Ensure it's not too slow
+    }
+    
+    /**
+     * Get the current wave speed factor
+     * @returns {number} The current wave speed factor
+     */
+    getWaveSpeed() {
+        return this.waveSpeedFactor;
+    }
+    
+    /**
+     * Set the direction of wave movement
+     * @param {THREE.Vector2} direction - The direction vector for wave movement
+     */
+    setWaveDirection(direction) {
+        // Normalize the direction
+        this.waveDirection.copy(direction).normalize();
+        
+        // Reset the water normal map's offset if water exists
+        if (this.water && this.water.material.uniforms['normalSampler']) {
+            this.water.material.uniforms['normalSampler'].value.offset.set(0, 0);
+        }
+    }
+    
+    /**
+     * Get the current wave direction
+     * @returns {THREE.Vector2} The current wave direction
+     */
+    getWaveDirection() {
+        return this.waveDirection.clone();
     }
 }
 
