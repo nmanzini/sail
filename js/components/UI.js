@@ -145,6 +145,9 @@ class UI {
         }
         this.createAuthorOverlay(authorName);
 
+        // Create multiplayer button after author overlay
+        this.createMultiplayerButton();
+
         // Create tutorial overlay
         this.createTutorialOverlay();
 
@@ -444,14 +447,10 @@ class UI {
                 <span style="color: #3399ff;">■ Wind</span>
             </div>
             <div style="text-align: center; font-size: 10px; color: #666; border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 5px;">
-                Wind: ${this.world.getWindDirectionName()} at ${this.world.getWindSpeed().toFixed(1)} knots (fixed)
             </div>
         `;
 
         document.getElementById('top-right-container').appendChild(this.speedometer);
-        
-        // Add multiplayer button after the speedometer
-        this.createMultiplayerButton();
     }
 
     /**
@@ -460,22 +459,28 @@ class UI {
     createMultiplayerButton() {
         const multiplayerButton = document.createElement('div');
         multiplayerButton.id = 'multiplayer-button';
+        multiplayerButton.style.width = '40px';
+        multiplayerButton.style.height = '40px';
         multiplayerButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         multiplayerButton.style.color = 'white';
-        multiplayerButton.style.padding = '8px 12px';
-        multiplayerButton.style.borderRadius = '8px';
-        multiplayerButton.style.fontSize = '14px';
-        multiplayerButton.style.width = '100%';
-        multiplayerButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
-        multiplayerButton.style.transition = 'all 0.3s ease';
-        multiplayerButton.style.marginTop = '10px';
-        multiplayerButton.style.textAlign = 'center';
+        multiplayerButton.style.display = 'flex';
+        multiplayerButton.style.alignItems = 'center';
+        multiplayerButton.style.justifyContent = 'center';
         multiplayerButton.style.cursor = 'pointer';
+        multiplayerButton.style.borderRadius = '8px';
+        multiplayerButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        multiplayerButton.style.transition = 'all 0.2s ease';
         multiplayerButton.style.userSelect = 'none';
         multiplayerButton.style.webkitUserSelect = 'none';
+        multiplayerButton.style.marginTop = '10px';
+        
+        // Use SVG icon for multiplayer
+        multiplayerButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+        </svg>`;
         
         // Set initial state
-        multiplayerButton.textContent = 'Multiplayer: Connecting...';
+        multiplayerButton.title = 'Multiplayer: Connecting...';
         multiplayerButton.style.backgroundColor = '#FFA500'; // Orange while connecting
         
         // Add hover effect
@@ -500,19 +505,25 @@ class UI {
                 if (this.app.multiplayer.isConnected()) {
                     // Disconnect
                     this.app.multiplayer.disconnect();
-                    multiplayerButton.textContent = 'Connect to Multiplayer';
+                    multiplayerButton.title = 'Connect to Multiplayer';
                     multiplayerButton.style.backgroundColor = '#4CAF50'; // Green for "can connect"
                 } else {
                     // Connect
                     this.app.multiplayer.connect(this.app.serverUrl);
-                    multiplayerButton.textContent = 'Multiplayer: Connecting...';
+                    multiplayerButton.title = 'Multiplayer: Connecting...';
                     multiplayerButton.style.backgroundColor = '#FFA500'; // Orange while connecting
                 }
             }
         });
         
-        // Add to container
-        document.getElementById('top-right-container').appendChild(multiplayerButton);
+        // Add to container after author overlay
+        const topRightContainer = document.getElementById('top-right-container');
+        const authorOverlay = document.getElementById('author-overlay');
+        if (authorOverlay) {
+            topRightContainer.insertBefore(multiplayerButton, authorOverlay.nextSibling);
+        } else {
+            topRightContainer.appendChild(multiplayerButton);
+        }
         
         // Store reference
         this.elements.multiplayerButton = multiplayerButton;
@@ -522,10 +533,10 @@ class UI {
             if (this.app.multiplayer) {
                 const connected = this.app.multiplayer.isConnected();
                 if (connected) {
-                    multiplayerButton.textContent = 'Multiplayer: Connected';
+                    multiplayerButton.title = 'Multiplayer: Connected';
                     multiplayerButton.style.backgroundColor = '#4CAF50'; // Green when connected
                 } else {
-                    multiplayerButton.textContent = 'Multiplayer: Disconnected';
+                    multiplayerButton.title = 'Multiplayer: Disconnected';
                     multiplayerButton.style.backgroundColor = '#f44336'; // Red when disconnected
                 }
             }
@@ -951,117 +962,54 @@ class UI {
     createAuthorOverlay(authorName = '@nicolamanzini') {
         const authorOverlay = document.createElement('div');
         authorOverlay.id = 'author-overlay';
-        authorOverlay.style.position = 'relative';
+        authorOverlay.style.width = '40px';
+        authorOverlay.style.height = '40px';
         authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         authorOverlay.style.color = 'white';
-        authorOverlay.style.padding = '8px 12px';
-        authorOverlay.style.borderRadius = '8px';
-        authorOverlay.style.fontFamily = 'Arial, sans-serif';
-        authorOverlay.style.fontSize = '14px';
-        authorOverlay.style.zIndex = '1000';
-        authorOverlay.style.backdropFilter = 'blur(4px)';
-        authorOverlay.style.WebkitBackdropFilter = 'blur(4px)';
-        authorOverlay.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
         authorOverlay.style.display = 'flex';
         authorOverlay.style.alignItems = 'center';
-        authorOverlay.style.gap = '8px';
-        authorOverlay.style.transition = 'all 0.3s ease';
-        authorOverlay.style.width = '100%';
         authorOverlay.style.justifyContent = 'center';
-        
-        // Create mail icon - using white color like other UI elements
-        const mailIcon = document.createElement('div');
-        mailIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-            <polyline points="22,6 12,13 2,6"></polyline>
-        </svg>`;
-        mailIcon.style.lineHeight = '0';
-        mailIcon.style.opacity = '0.9';
-        mailIcon.style.transition = 'all 0.3s ease';
+        authorOverlay.style.cursor = 'pointer';
+        authorOverlay.style.borderRadius = '8px';
+        authorOverlay.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        authorOverlay.style.transition = 'all 0.2s ease';
+        authorOverlay.style.userSelect = 'none';
+        authorOverlay.style.webkitUserSelect = 'none';
+        authorOverlay.style.marginTop = '10px';
         
         // Generate Twitter/X URL from the author name
         const authorHandle = authorName.startsWith('@') ? authorName.substring(1) : authorName;
         const authorUrl = `https://x.com/${authorHandle}`;
         
-        // Wrap the entire overlay content in an anchor tag
-        const authorAnchor = document.createElement('a');
-        authorAnchor.href = authorUrl;
-        authorAnchor.target = '_blank';
-        authorAnchor.rel = 'noopener noreferrer';
-        authorAnchor.style.textDecoration = 'none';
-        authorAnchor.style.color = 'inherit';
-        authorAnchor.style.display = 'flex';
-        authorAnchor.style.alignItems = 'center';
-        authorAnchor.style.gap = '8px';
-        authorAnchor.style.width = '100%';
-        authorAnchor.style.cursor = 'pointer';
-        authorAnchor.style.justifyContent = 'center';
-        authorAnchor.style.transition = 'all 0.3s ease';
-        
-        const authorText = document.createElement('span');
-        authorText.textContent = authorName;
-        authorText.style.color = 'white';
-        authorText.style.fontWeight = 'bold';
-        authorText.style.opacity = '0.9';
-        authorText.style.transition = 'all 0.3s ease';
-        
-        // Use media query to adapt text size if name is long
-        const style = document.createElement('style');
-        style.textContent = `
-            @media (max-width: 500px) {
-                #author-overlay {
-                    font-size: 12px;
-                    padding: 6px 8px;
-                }
-                #author-overlay svg {
-                    width: 16px;
-                    height: 16px;
-                }
-            }
-            @media (max-width: 400px) {
-                #author-overlay {
-                    font-size: 10px;
-                    padding: 4px 6px;
-                }
-                #author-overlay svg {
-                    width: 14px;
-                    height: 14px;
-                }
-            }
-        `;
-        document.head.appendChild(style);
-        
-        // Append elements in the right hierarchy
-        authorAnchor.appendChild(mailIcon);
-        authorAnchor.appendChild(authorText);
-        authorOverlay.appendChild(authorAnchor);
-        
-        // Add to top-right-container after speedometer
-        const topRightContainer = document.getElementById('top-right-container');
-        if (topRightContainer) {
-            // Insert after speedometer but before button container
-            const buttonContainer = document.getElementById('button-container');
-            if (buttonContainer) {
-                topRightContainer.insertBefore(authorOverlay, buttonContainer);
-            } else {
-                topRightContainer.appendChild(authorOverlay);
-            }
-        } else {
-            document.body.appendChild(authorOverlay);
-        }
+        // Create X.com logo SVG
+        authorOverlay.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>`;
         
         // Add hover effect
         authorOverlay.addEventListener('mouseover', () => {
-            authorText.style.textDecoration = 'underline';
             authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
             authorOverlay.style.transform = 'scale(1.05)';
         });
         
         authorOverlay.addEventListener('mouseout', () => {
-            authorText.style.textDecoration = 'none';
             authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
             authorOverlay.style.transform = 'scale(1)';
         });
+        
+        // Add click handler
+        authorOverlay.addEventListener('click', () => {
+            window.open(authorUrl, '_blank', 'noopener,noreferrer');
+        });
+        
+        // Add to top-right-container after speedometer but before button container
+        const topRightContainer = document.getElementById('top-right-container');
+        const buttonContainer = document.getElementById('button-container');
+        if (buttonContainer) {
+            topRightContainer.insertBefore(authorOverlay, buttonContainer);
+        } else {
+            topRightContainer.appendChild(authorOverlay);
+        }
     }
 
     /**
