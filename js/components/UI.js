@@ -93,6 +93,19 @@ class UI {
      * Initialize UI elements
      */
     init() {
+        // Create top right container for UI elements
+        const topRightContainer = document.createElement('div');
+        topRightContainer.id = 'top-right-container';
+        topRightContainer.style.position = 'absolute';
+        topRightContainer.style.top = '10px';
+        topRightContainer.style.right = '10px';
+        topRightContainer.style.display = 'flex';
+        topRightContainer.style.flexDirection = 'column';
+        topRightContainer.style.alignItems = 'flex-end';
+        topRightContainer.style.gap = '10px';
+        topRightContainer.style.zIndex = '1000';
+        document.body.appendChild(topRightContainer);
+
         // Core UI elements (always visible)
         this.createSpeedometer();
         this.createControls();
@@ -142,16 +155,12 @@ class UI {
         // Create a container for all buttons
         const buttonContainer = document.createElement('div');
         buttonContainer.id = 'button-container';
-        buttonContainer.style.position = 'absolute';
-        buttonContainer.style.top = '50%'; // Position in the middle of the screen vertically
-        buttonContainer.style.transform = 'translateY(-50%)'; // Center it properly
-        buttonContainer.style.right = '10px';
         buttonContainer.style.display = 'flex';
         buttonContainer.style.flexDirection = 'column';
         buttonContainer.style.gap = '10px';
         buttonContainer.style.zIndex = '1000';
         
-        document.body.appendChild(buttonContainer);
+        document.getElementById('top-right-container').appendChild(buttonContainer);
     }
     
     /**
@@ -389,9 +398,6 @@ class UI {
     createSpeedometer() {
         this.speedometer = document.createElement('div');
         this.speedometer.id = 'speedometer';
-        this.speedometer.style.position = 'absolute';
-        this.speedometer.style.top = '10px';
-        this.speedometer.style.right = '10px';
         this.speedometer.style.color = 'white';
         this.speedometer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         this.speedometer.style.padding = '10px';
@@ -424,7 +430,7 @@ class UI {
             </div>
         `;
 
-        document.body.appendChild(this.speedometer);
+        document.getElementById('top-right-container').appendChild(this.speedometer);
     }
 
     /**
