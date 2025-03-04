@@ -3,12 +3,16 @@
  */
 // Import THREE.js for vector operations
 import * as THREE from 'three';
+import keyboardManager from './KeyboardManager.js';
 
 class BoatControls {
     constructor(dynamics) {
         this.dynamics = dynamics;
         this.isRudderControlled = false;
         this.autoRudderCenteringSpeed = 0.5; // radians per second
+        
+        // Add keyboard listener
+        keyboardManager.addListener(this.handleKeyboardInput.bind(this));
     }
     
     /**
@@ -147,11 +151,10 @@ class BoatControls {
     }
     
     /**
-     * Process keyboard input for boat control
+     * Handle keyboard input from KeyboardManager
      * @param {Object} keys - Object containing pressed keys state
-     * @param {number} deltaTime - Time since last update in seconds
      */
-    processKeyboardInput(keys, deltaTime) {
+    handleKeyboardInput(keys) {
         // Rudder control with A/D keys (inverted for more intuitive control)
         // Now pressing left makes boat turn left, pressing right makes boat turn right
         if (keys.a || keys.arrowleft) {
@@ -174,6 +177,17 @@ class BoatControls {
         // Update UI
         this.updateRudderUI();
         this.updateSailUI();
+    }
+    
+    /**
+     * Process keyboard input for boat control
+     * @param {Object} keys - Object containing pressed keys state
+     * @param {number} deltaTime - Time since last update in seconds
+     */
+    processKeyboardInput(keys, deltaTime) {
+        // This method is now deprecated as we use handleKeyboardInput
+        // Keeping it for backward compatibility
+        this.handleKeyboardInput(keys);
     }
     
     /**

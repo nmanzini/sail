@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import keyboardManager from './KeyboardManager.js';
 
 /**
  * Controls all camera functionality for the sailing simulator
@@ -71,8 +72,8 @@ export default class CameraController {
         this.applyOrbitSettings(this.cameraModes.orbit);
         this.controls.target.set(0, 0, 0);
         
-        // Set up keyboard controls
-        this.setupCameraControls();
+        // Add keyboard listener for camera controls
+        keyboardManager.addListener(this.handleKeyboardInput.bind(this));
         
         // Position camera to start with a good view of the boat
         this.initializeCamera();
@@ -202,14 +203,13 @@ export default class CameraController {
     }
     
     /**
-     * Set up camera toggle controls
+     * Handle keyboard input from KeyboardManager
+     * @param {Object} keys - Object containing pressed keys state
      */
-    setupCameraControls() {
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'c' || e.key === 'C') {
-                this.toggleCameraMode();
-            }
-        });
+    handleKeyboardInput(keys) {
+        if (keys.c) {
+            this.toggleCameraMode();
+        }
     }
     
     /**

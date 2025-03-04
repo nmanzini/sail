@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import TimeChallenge from './TimeChallenge.js';
+import keyboardManager from './KeyboardManager.js';
 
 /**
  * UI class for handling all user interface elements
@@ -441,7 +442,7 @@ class UI {
         
         // Use SVG icon for multiplayer
         multiplayerButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
-            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
         </svg>`;
         
         // Set initial state
@@ -536,112 +537,54 @@ class UI {
      * Set up keyboard controls
      */
     setupKeyboardControls() {
-        // Track which keys are currently pressed
-        const pressedKeys = new Set();
-
-        // Constants for control speeds (in radians per second)
-        const RUDDER_TURN_SPEED = 2.0;
-        const SAIL_ADJUST_SPEED = 1.0;
-
-        // Setup animation frame for continuous movement
-        let lastTime = performance.now();
         let animationFrameId = null;
-
-        const updateControls = (currentTime) => {
-            const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
-            lastTime = currentTime;
-
-            // Process keyboard input through boat's controls system
-            const keys = {
-                arrowleft: pressedKeys.has('ArrowLeft'),
-                arrowright: pressedKeys.has('ArrowRight'),
-                arrowup: pressedKeys.has('ArrowUp'),
-                arrowdown: pressedKeys.has('ArrowDown'),
-                a: pressedKeys.has('a') || pressedKeys.has('A'),
-                d: pressedKeys.has('d') || pressedKeys.has('D'),
-                w: pressedKeys.has('w') || pressedKeys.has('W'),
-                s: pressedKeys.has('s') || pressedKeys.has('S')
-            };
+        let lastTime = 0;
+        
+        // Handle keyboard input using KeyboardManager
+        keyboardManager.addListener((keys) => {
+            // Handle vector mode toggle
+            if (keys.v) {
+                // Toggle the vector mode, but only call once per press
+                if (!this.lastVKeyState) {
+                    this.toggleVectorMode();
+                }
+                this.lastVKeyState = true;
+            } else {
+                this.lastVKeyState = false;
+            }
             
+            // Handle camera mode toggle (now handled in CameraController)
+            
+            // If animation not running, start it for movement keys
+            if (!animationFrameId && (keys.w || keys.a || keys.s || keys.d || 
+                                     keys.arrowup || keys.arrowdown || 
+                                     keys.arrowleft || keys.arrowright)) {
+                lastTime = performance.now();
+                animationFrameId = requestAnimationFrame(updateControls);
+            }
+        });
+        
+        // Store last key states to handle toggles
+        this.lastVKeyState = false;
+        
+        const updateControls = (currentTime) => {
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+            
+            // Get keys from KeyboardManager
+            const keys = keyboardManager.getKeys();
+            
+            // Process keyboard input for boat control
             this.boat.processKeyboardInput(keys, deltaTime);
-
+            
             // Continue animation if any relevant keys are pressed
-            if (pressedKeys.size > 0) {
+            const hasActiveKeys = Object.values(keys).some(value => value);
+            if (hasActiveKeys) {
                 animationFrameId = requestAnimationFrame(updateControls);
             } else {
                 animationFrameId = null;
             }
         };
-
-        // Key down event - start continuous movement
-        document.addEventListener('keydown', (e) => {
-            // Prevent default behavior for game controls
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'a', 'A', 'd', 'D', 'w', 'W', 's', 'S'].includes(e.key)) {
-                e.preventDefault();
-            }
-
-            switch (e.key) {
-                case 'v':
-                case 'V':
-                    // Toggle vector visualization mode
-                    this.toggleVectorMode();
-                    break;
-                case 'c':
-                case 'C':
-                    // Toggle camera mode
-                    this.toggleCameraMode();
-                    break;
-                case 'a':
-                case 'A':
-                case 'd':
-                case 'D':
-                case 'w':
-                case 'W':
-                case 's':
-                case 'S':
-                case 'ArrowLeft':
-                case 'ArrowRight':
-                case 'ArrowUp':
-                case 'ArrowDown':
-                    if (!pressedKeys.has(e.key)) {
-                        pressedKeys.add(e.key);
-                        if (!animationFrameId) { // Only start animation if not already running
-                            lastTime = performance.now();
-                            animationFrameId = requestAnimationFrame(updateControls);
-                        }
-                    }
-                    break;
-            }
-        });
-
-        // Key up event - stop movement
-        document.addEventListener('keyup', (e) => {
-            switch (e.key) {
-                case 'a':
-                case 'A':
-                case 'd':
-                case 'D':
-                case 'w':
-                case 'W':
-                case 's':
-                case 'S':
-                case 'ArrowLeft':
-                case 'ArrowRight':
-                case 'ArrowUp':
-                case 'ArrowDown':
-                    pressedKeys.delete(e.key);
-                    break;
-            }
-        });
-
-        // Cancel animation frame when window loses focus
-        window.addEventListener('blur', () => {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-            pressedKeys.clear();
-        });
     }
 
     /**
