@@ -39,8 +39,8 @@ class AudioManager {
         this.windSpeedToVolume = {
             min: 0,
             max: 15,
-            minGain: 0.15,  // Reduced from 0.3 to 0.15 for quieter sound
-            maxGain: 0.75   // Reduced from 1.5 to 0.75 for less intense wind at high speeds
+            minGain: 0.1,  // Reduced from 0.15 to 0.1 for quieter wind at low speeds
+            maxGain: 0.5   // Reduced from 0.75 to 0.5 for less intense wind at high speeds
         };
         
         // Sound file URLs
@@ -48,7 +48,15 @@ class AudioManager {
             wind: 'public/sounds/winter-wind-305577.mp3',
             sea: 'public/sounds/boat_waves-6099.mp3',
             woodCreaking: 'public/sounds/wood-creaking-30692.mp3',
-            sailDeploy: 'public/sounds/saildeploy-99393.mp3'
+            sailDeploy: 'public/sounds/saildeploy-99393.mp3',
+            backgroundMusic: 'public/sounds/happy-relaxing-loop-275536.mp3'
+        };
+        
+        // Add background music object
+        this.backgroundMusic = {
+            source: null,
+            gainNode: null,
+            playing: false
         };
         
         // Flag to track if audio system is initialized
@@ -74,7 +82,8 @@ class AudioManager {
             this.preloadSound(this.soundFiles.wind),
             this.preloadSound(this.soundFiles.sea),
             this.preloadSound(this.soundFiles.woodCreaking),
-            this.preloadSound(this.soundFiles.sailDeploy)
+            this.preloadSound(this.soundFiles.sailDeploy),
+            this.preloadSound(this.soundFiles.backgroundMusic)
         ];
         
         this.initPromise = new Promise((resolve, reject) => {
@@ -95,10 +104,11 @@ class AudioManager {
                             this.audioContext.decodeAudioData(arrayBuffers[0]),
                             this.audioContext.decodeAudioData(arrayBuffers[1]),
                             this.audioContext.decodeAudioData(arrayBuffers[2]),
-                            this.audioContext.decodeAudioData(arrayBuffers[3])
+                            this.audioContext.decodeAudioData(arrayBuffers[3]),
+                            this.audioContext.decodeAudioData(arrayBuffers[4])
                         ]);
                     })
-                    .then(([windBuffer, seaBuffer, woodCreakingBuffer, sailDeployBuffer]) => {
+                    .then(([windBuffer, seaBuffer, woodCreakingBuffer, sailDeployBuffer, backgroundMusicBuffer]) => {
                         // Store wood creaking buffer reference for compressor setup
                         this.woodCreakingBuffer = woodCreakingBuffer;
                         
@@ -114,10 +124,17 @@ class AudioManager {
                         // Configure sail deploy sound (non-looping)
                         this.setupSound(this.sailDeploySound, sailDeployBuffer, false);
                         
+                        // Configure background music
+                        this.setupLoopingSound(this.backgroundMusic, backgroundMusicBuffer);
+                        
                         this.initialized = true;
                         
                         // Remove delay and start at full volume immediately
                         this.masterGain.gain.value = 0.5; // Set to 50% volume immediately
+                        
+                        // Start background music immediately
+                        this.playLoopingSound(this.backgroundMusic);
+                        this.backgroundMusic.gainNode.gain.value = 0.8;
                         
                         resolve();
                     })
@@ -226,7 +243,7 @@ class AudioManager {
         if (!this.initialized) return;
         
         // Default intensity if not provided
-        const volume = intensity !== undefined ? intensity : 0.5;
+        const volume = intensity !== undefined ? intensity : 0.3; // Reduced from 0.5 to 0.3
         
         // Start playing if not already
         if (!this.seaSound.playing) {
@@ -438,11 +455,11 @@ class AudioManager {
     playWoodCreakingSound(turnIntensity = 0.5) {
         if (!this.initialized) return;
         
-        // Scale the volume based on turn intensity with extreme base volume
-        // Significantly increased base and maximum volume
-        const volume = Math.min(2.5, 1.2 + (turnIntensity * 1.3));
+        // Scale the volume based on turn intensity with reduced base volume
+        // Reduced from 2.5 to 1.5 for maximum volume
+        const volume = Math.min(1.5, 0.8 + (turnIntensity * 0.7));
         
-        // Minimal randomization to ensure consistently extreme loudness
+        // Minimal randomization to ensure consistent volume
         const randomizedVolume = volume * (0.97 + Math.random() * 0.06);
         
         // Play the sound with minimal cooldown (200ms) for very frequent creaking
@@ -471,7 +488,8 @@ class AudioManager {
             // Schedule the sound to play after delay
             setTimeout(() => {
                 // Maximum intensity for each sound in the sequence
-                const soundIntensity = Math.min(2.5, 1.5 + (Math.random() * 1.0));
+                // Reduced from 2.5 to 1.5 for maximum volume
+                const soundIntensity = Math.min(1.5, 1.0 + (Math.random() * 0.5));
                 this.playWoodCreakingSound(soundIntensity);
             }, delay);
         }
@@ -489,8 +507,8 @@ class AudioManager {
             windSpeed,
             this.windSpeedToVolume.min,
             this.windSpeedToVolume.max,
-            0.3,  // Minimum volume
-            0.8   // Maximum volume
+            0.2,  // Reduced from 0.3 to 0.2 for minimum volume
+            0.6   // Reduced from 0.8 to 0.6 for maximum volume
         );
         
         // Add slight randomization to volume for more natural sound
@@ -562,6 +580,27 @@ class AudioManager {
     }
     
     /**
+     * Toggle background music
+     */
+    toggleBackgroundMusic(enabled) {
+        if (!this.initialized) return;
+        
+        if (enabled) {
+            // Start background music if not playing
+            if (!this.backgroundMusic.playing) {
+                this.playLoopingSound(this.backgroundMusic);
+                // Set volume immediately without fade
+                this.backgroundMusic.gainNode.gain.value = 0.8; // Increased from 0.6 to 0.8 for better balance
+            }
+        } else {
+            // Stop background music
+            this.stopSound(this.backgroundMusic);
+        }
+        
+        return this.backgroundMusic.playing;
+    }
+    
+    /**
      * Stop all sounds and clean up
      */
     dispose() {
@@ -572,6 +611,7 @@ class AudioManager {
         this.stopSound(this.seaSound);
         this.stopSound(this.woodCreakingSound);
         this.stopSound(this.sailDeploySound);
+        this.stopSound(this.backgroundMusic);
         
         // Close audio context
         if (this.audioContext && this.audioContext.state !== 'closed') {

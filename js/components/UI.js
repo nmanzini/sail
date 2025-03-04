@@ -1227,14 +1227,13 @@ class UI {
         musicButton.style.transition = 'all 0.2s ease';
         musicButton.style.userSelect = 'none';
         musicButton.style.webkitUserSelect = 'none';
-        musicButton.style.opacity = '0.5'; // Start with low opacity until audio is initialized
         
         // Use SVG icon for music note
         musicButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
         </svg>`;
         
-        musicButton.title = 'Toggle Background Music (Click anywhere first to activate audio)';
+        musicButton.title = 'Toggle Background Music';
         
         // Add hover effect
         musicButton.addEventListener('mouseover', () => {
@@ -1256,10 +1255,10 @@ class UI {
                 musicEnabled = !musicEnabled;
                 
                 // Toggle background music
-                this.app.audio.toggleBackgroundMusic(musicEnabled);
+                const isPlaying = this.app.audio.toggleBackgroundMusic(musicEnabled);
                 
-                // Update button icon based on music state
-                if (musicEnabled) {
+                // Update button appearance based on music state
+                if (isPlaying) {
                     musicButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
                         <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
                     </svg>`;
