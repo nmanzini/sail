@@ -149,69 +149,6 @@ class Sail {
         
         // Connect to the server by default
         this.multiplayer.connect(this.serverUrl);
-        
-        // Add a button to the UI for connecting to the server
-        this.addMultiplayerButton();
-    }
-    
-    /**
-     * Add a multiplayer connect/disconnect button to the UI
-     */
-    addMultiplayerButton() {
-        // Create a container for the multiplayer button
-        const container = document.createElement('div');
-        container.style.position = 'absolute';
-        container.style.left = '50%';
-        container.style.top = '45px'; // Position below author overlay
-        container.style.transform = 'translateX(-50%)'; // Center horizontally
-        container.style.zIndex = '999'; // Below the author overlay
-        document.body.appendChild(container);
-        
-        // Create the button
-        const button = document.createElement('button');
-        button.textContent = this.multiplayerEnabled ? 'Multiplayer: Connecting...' : 'Connect to Multiplayer';
-        button.style.padding = '10px 15px';
-        // Set initial color to orange while connecting
-        button.style.backgroundColor = '#FFA500'; // Orange while connecting
-        button.style.color = 'white';
-        button.style.border = 'none';
-        button.style.borderRadius = '4px';
-        button.style.cursor = 'pointer';
-        button.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.3)';
-        button.style.fontSize = '14px';
-        button.style.fontFamily = 'Arial, sans-serif';
-        container.appendChild(button);
-        
-        // Add event listener
-        button.addEventListener('click', () => {
-            if (!this.multiplayerEnabled) {
-                // Connect to server
-                this.multiplayer.connect(this.serverUrl);
-                this.multiplayerEnabled = true;
-                button.textContent = 'Multiplayer: Connecting...';
-                button.style.backgroundColor = '#FFA500'; // Orange while connecting
-            } else {
-                // Disconnect from server
-                this.multiplayer.disconnect();
-                this.multiplayerEnabled = false;
-                button.textContent = 'Connect to Multiplayer';
-                button.style.backgroundColor = '#4CAF50'; // Green for "can connect"
-            }
-        });
-        
-        // Setup interval to update connection status
-        setInterval(() => {
-            if (this.multiplayerEnabled) {
-                const connected = this.multiplayer && this.multiplayer.isConnected();
-                if (connected) {
-                    button.textContent = 'Multiplayer: Connected';
-                    button.style.backgroundColor = '#4CAF50'; // Green when connected
-                } else {
-                    button.textContent = 'Multiplayer: Disconnected';
-                    button.style.backgroundColor = '#f44336'; // Red when disconnected
-                }
-            }
-        }, 1000); // Check every second
     }
     
     /**

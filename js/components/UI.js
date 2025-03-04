@@ -243,7 +243,8 @@ class UI {
             soundButton: document.getElementById('sound-toggle-btn'),
             cameraButton: document.getElementById('camera-button'),
             vectorButton: null,
-            vectorModeIndicator: null
+            vectorModeIndicator: null,
+            multiplayerButton: null
         };
     }
 
@@ -448,6 +449,87 @@ class UI {
         `;
 
         document.getElementById('top-right-container').appendChild(this.speedometer);
+        
+        // Add multiplayer button after the speedometer
+        this.createMultiplayerButton();
+    }
+
+    /**
+     * Create the multiplayer connection button
+     */
+    createMultiplayerButton() {
+        const multiplayerButton = document.createElement('div');
+        multiplayerButton.id = 'multiplayer-button';
+        multiplayerButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        multiplayerButton.style.color = 'white';
+        multiplayerButton.style.padding = '8px 12px';
+        multiplayerButton.style.borderRadius = '8px';
+        multiplayerButton.style.fontSize = '14px';
+        multiplayerButton.style.width = '100%';
+        multiplayerButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        multiplayerButton.style.transition = 'all 0.3s ease';
+        multiplayerButton.style.marginTop = '10px';
+        multiplayerButton.style.textAlign = 'center';
+        multiplayerButton.style.cursor = 'pointer';
+        multiplayerButton.style.userSelect = 'none';
+        multiplayerButton.style.webkitUserSelect = 'none';
+        
+        // Set initial state
+        multiplayerButton.textContent = 'Multiplayer: Connecting...';
+        multiplayerButton.style.backgroundColor = '#FFA500'; // Orange while connecting
+        
+        // Add hover effect
+        multiplayerButton.addEventListener('mouseover', () => {
+            multiplayerButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            multiplayerButton.style.transform = 'scale(1.05)';
+        });
+        
+        multiplayerButton.addEventListener('mouseout', () => {
+            const isConnected = this.app.multiplayer && this.app.multiplayer.isConnected();
+            if (isConnected) {
+                multiplayerButton.style.backgroundColor = '#4CAF50'; // Green when connected
+            } else {
+                multiplayerButton.style.backgroundColor = '#f44336'; // Red when disconnected
+            }
+            multiplayerButton.style.transform = 'scale(1)';
+        });
+        
+        // Add click handler
+        multiplayerButton.addEventListener('click', () => {
+            if (this.app.multiplayer) {
+                if (this.app.multiplayer.isConnected()) {
+                    // Disconnect
+                    this.app.multiplayer.disconnect();
+                    multiplayerButton.textContent = 'Connect to Multiplayer';
+                    multiplayerButton.style.backgroundColor = '#4CAF50'; // Green for "can connect"
+                } else {
+                    // Connect
+                    this.app.multiplayer.connect(this.app.serverUrl);
+                    multiplayerButton.textContent = 'Multiplayer: Connecting...';
+                    multiplayerButton.style.backgroundColor = '#FFA500'; // Orange while connecting
+                }
+            }
+        });
+        
+        // Add to container
+        document.getElementById('top-right-container').appendChild(multiplayerButton);
+        
+        // Store reference
+        this.elements.multiplayerButton = multiplayerButton;
+        
+        // Setup interval to update connection status
+        setInterval(() => {
+            if (this.app.multiplayer) {
+                const connected = this.app.multiplayer.isConnected();
+                if (connected) {
+                    multiplayerButton.textContent = 'Multiplayer: Connected';
+                    multiplayerButton.style.backgroundColor = '#4CAF50'; // Green when connected
+                } else {
+                    multiplayerButton.textContent = 'Multiplayer: Disconnected';
+                    multiplayerButton.style.backgroundColor = '#f44336'; // Red when disconnected
+                }
+            }
+        }, 1000); // Check every second
     }
 
     /**
