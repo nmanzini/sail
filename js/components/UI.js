@@ -36,8 +36,13 @@ class UI {
         const style = document.createElement('style');
         style.textContent = `
             @media (max-width: 768px) {
+                #top-right-container {
+                    width: 120px !important;
+                    transform: scale(0.9);
+                    transform-origin: top right;
+                }
                 #speedometer {
-                    transform: scale(0.8);
+                    transform: none;
                     transform-origin: top right;
                 }
                 #controls-panel {
@@ -57,32 +62,41 @@ class UI {
                     transform-origin: center right;
                 }
                 #author-overlay {
-                    transform: scale(0.9);
+                    transform: none;
+                    font-size: 12px;
+                    padding: 6px 8px;
                 }
             }
             @media (max-width: 480px) {
+                #top-right-container {
+                    width: 110px !important;
+                    transform: scale(0.85);
+                    transform-origin: top right;
+                }
                 #speedometer {
-                    transform: scale(0.7);
+                    transform: none;
                     transform-origin: top right;
                 }
                 #controls-panel {
-                    transform: scale(0.7);
+                    transform: scale(0.75);
                     transform-origin: top left;
                 }
                 #camera-button {
-                    transform: scale(0.7);
+                    transform: scale(0.75);
                     transform-origin: bottom right;
                 }
                 #sound-toggle-btn {
-                    transform: scale(0.7);
+                    transform: scale(0.75);
                     transform-origin: bottom right;
                 }
                 #button-container {
-                    transform: scale(0.7);
+                    transform: scale(0.75);
                     transform-origin: center right;
                 }
                 #author-overlay {
-                    transform: scale(0.8);
+                    transform: none;
+                    font-size: 10px;
+                    padding: 4px 6px;
                 }
             }
         `;
@@ -104,6 +118,8 @@ class UI {
         topRightContainer.style.alignItems = 'flex-end';
         topRightContainer.style.gap = '10px';
         topRightContainer.style.zIndex = '1000';
+        topRightContainer.style.width = '130px';
+        topRightContainer.style.transition = 'all 0.3s ease';
         document.body.appendChild(topRightContainer);
 
         // Core UI elements (always visible)
@@ -403,8 +419,9 @@ class UI {
         this.speedometer.style.padding = '10px';
         this.speedometer.style.borderRadius = '8px';
         this.speedometer.style.fontSize = '14px';
-        this.speedometer.style.width = '130px';
+        this.speedometer.style.width = '100%';
         this.speedometer.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        this.speedometer.style.transition = 'all 0.3s ease';
         
         // Update the content of the speedometer
         this.speedometer.innerHTML = `
@@ -852,10 +869,7 @@ class UI {
     createAuthorOverlay(authorName = '@nicolamanzini') {
         const authorOverlay = document.createElement('div');
         authorOverlay.id = 'author-overlay';
-        authorOverlay.style.position = 'absolute';
-        authorOverlay.style.top = '10px';
-        authorOverlay.style.left = '50%';
-        authorOverlay.style.transform = 'translateX(-50%)';
+        authorOverlay.style.position = 'relative';
         authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
         authorOverlay.style.color = 'white';
         authorOverlay.style.padding = '8px 12px';
@@ -869,7 +883,9 @@ class UI {
         authorOverlay.style.display = 'flex';
         authorOverlay.style.alignItems = 'center';
         authorOverlay.style.gap = '8px';
-        authorOverlay.style.transition = 'all 0.2s ease';
+        authorOverlay.style.transition = 'all 0.3s ease';
+        authorOverlay.style.width = '100%';
+        authorOverlay.style.justifyContent = 'center';
         
         // Create mail icon - using white color like other UI elements
         const mailIcon = document.createElement('div');
@@ -879,6 +895,7 @@ class UI {
         </svg>`;
         mailIcon.style.lineHeight = '0';
         mailIcon.style.opacity = '0.9';
+        mailIcon.style.transition = 'all 0.3s ease';
         
         // Generate Twitter/X URL from the author name
         const authorHandle = authorName.startsWith('@') ? authorName.substring(1) : authorName;
@@ -896,24 +913,37 @@ class UI {
         authorAnchor.style.gap = '8px';
         authorAnchor.style.width = '100%';
         authorAnchor.style.cursor = 'pointer';
+        authorAnchor.style.justifyContent = 'center';
+        authorAnchor.style.transition = 'all 0.3s ease';
         
         const authorText = document.createElement('span');
         authorText.textContent = authorName;
         authorText.style.color = 'white';
         authorText.style.fontWeight = 'bold';
         authorText.style.opacity = '0.9';
+        authorText.style.transition = 'all 0.3s ease';
         
         // Use media query to adapt text size if name is long
         const style = document.createElement('style');
         style.textContent = `
             @media (max-width: 500px) {
-                #author-overlay span {
+                #author-overlay {
                     font-size: 12px;
+                    padding: 6px 8px;
+                }
+                #author-overlay svg {
+                    width: 16px;
+                    height: 16px;
                 }
             }
             @media (max-width: 400px) {
-                #author-overlay span {
+                #author-overlay {
                     font-size: 10px;
+                    padding: 4px 6px;
+                }
+                #author-overlay svg {
+                    width: 14px;
+                    height: 14px;
                 }
             }
         `;
@@ -923,19 +953,32 @@ class UI {
         authorAnchor.appendChild(mailIcon);
         authorAnchor.appendChild(authorText);
         authorOverlay.appendChild(authorAnchor);
-        document.body.appendChild(authorOverlay);
+        
+        // Add to top-right-container after speedometer
+        const topRightContainer = document.getElementById('top-right-container');
+        if (topRightContainer) {
+            // Insert after speedometer but before button container
+            const buttonContainer = document.getElementById('button-container');
+            if (buttonContainer) {
+                topRightContainer.insertBefore(authorOverlay, buttonContainer);
+            } else {
+                topRightContainer.appendChild(authorOverlay);
+            }
+        } else {
+            document.body.appendChild(authorOverlay);
+        }
         
         // Add hover effect
         authorOverlay.addEventListener('mouseover', () => {
             authorText.style.textDecoration = 'underline';
             authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            authorOverlay.style.transform = 'translateX(-50%) scale(1.05)';
+            authorOverlay.style.transform = 'scale(1.05)';
         });
         
         authorOverlay.addEventListener('mouseout', () => {
             authorText.style.textDecoration = 'none';
             authorOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            authorOverlay.style.transform = 'translateX(-50%) scale(1)';
+            authorOverlay.style.transform = 'scale(1)';
         });
     }
 
