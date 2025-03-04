@@ -670,14 +670,33 @@ class UI {
      */
     createControlsPanel() {
         // Create container for challenge controls
-        const challengeContainer = document.createElement('div');
-        challengeContainer.style.position = 'absolute';
-        challengeContainer.style.left = '10px';
-        challengeContainer.style.top = '10px';
-        challengeContainer.style.display = 'flex';
-        challengeContainer.style.flexDirection = 'column';
-        challengeContainer.style.gap = '10px';
-        challengeContainer.style.zIndex = '998';
+        const challengePanel = document.createElement('div');
+        challengePanel.id = 'challenge-panel';
+        challengePanel.style.position = 'absolute';
+        challengePanel.style.left = '10px';
+        challengePanel.style.top = '10px';
+        challengePanel.style.display = 'flex';
+        challengePanel.style.flexDirection = 'column';
+        challengePanel.style.gap = '10px';
+        challengePanel.style.zIndex = '998';
+        challengePanel.style.alignItems = 'center';
+
+        // Create leaderboard button
+        const leaderboardButton = document.createElement('div');
+        leaderboardButton.id = 'leaderboard-button';
+        leaderboardButton.style.backgroundColor = '#4CAF50';
+        leaderboardButton.style.color = 'white';
+        leaderboardButton.style.padding = '15px 30px';
+        leaderboardButton.style.borderRadius = '8px';
+        leaderboardButton.style.fontSize = '18px';
+        leaderboardButton.style.fontWeight = 'bold';
+        leaderboardButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        leaderboardButton.style.transition = 'all 0.2s ease-out';
+        leaderboardButton.style.cursor = 'pointer';
+        leaderboardButton.style.userSelect = 'none';
+        leaderboardButton.style.width = '200px';
+        leaderboardButton.style.textAlign = 'center';
+        leaderboardButton.textContent = 'Leaderboard';
 
         // Create start/stop button
         const startButton = document.createElement('div');
@@ -692,6 +711,8 @@ class UI {
         startButton.style.transition = 'all 0.2s ease-out';
         startButton.style.cursor = 'pointer';
         startButton.style.userSelect = 'none';
+        startButton.style.width = '200px';
+        startButton.style.textAlign = 'center';
         startButton.textContent = 'Start Challenge';
         startButton.dataset.state = 'start';
 
@@ -706,10 +727,10 @@ class UI {
         timerDisplay.style.fontFamily = 'monospace';
         timerDisplay.style.textAlign = 'center';
         timerDisplay.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
-        timerDisplay.style.display = 'none'; // Hidden by default
+        timerDisplay.style.display = 'none';
         timerDisplay.textContent = '00:00.0';
 
-        // Add hover effect to button
+        // Add hover effect to start button
         startButton.addEventListener('mouseover', () => {
             startButton.style.backgroundColor = startButton.dataset.state === 'start' ? '#4da6ff' : '#ff4d4d';
             startButton.style.transform = 'scale(1.05)';
@@ -720,7 +741,18 @@ class UI {
             startButton.style.transform = 'scale(1)';
         });
 
-        // Add click handler
+        // Add hover effect to leaderboard button
+        leaderboardButton.addEventListener('mouseover', () => {
+            leaderboardButton.style.backgroundColor = '#45a049';
+            leaderboardButton.style.transform = 'scale(1.05)';
+        });
+
+        leaderboardButton.addEventListener('mouseout', () => {
+            leaderboardButton.style.backgroundColor = '#4CAF50';
+            leaderboardButton.style.transform = 'scale(1)';
+        });
+
+        // Add click handler to start button
         startButton.addEventListener('click', () => {
             if (startButton.dataset.state === 'start') {
                 this.startTimeChallenge();
@@ -737,10 +769,17 @@ class UI {
             }
         });
 
-        // Add elements to container
-        challengeContainer.appendChild(startButton);
-        challengeContainer.appendChild(timerDisplay);
-        document.body.appendChild(challengeContainer);
+        // Add click handler to leaderboard button
+        leaderboardButton.addEventListener('click', () => {
+            // TODO: Implement leaderboard functionality
+            console.log('Leaderboard clicked');
+        });
+
+        // Add elements directly to the challenge panel
+        challengePanel.appendChild(leaderboardButton);
+        challengePanel.appendChild(startButton);
+        challengePanel.appendChild(timerDisplay);
+        document.body.appendChild(challengePanel);
     }
 
     /**
