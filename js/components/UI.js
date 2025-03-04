@@ -629,6 +629,7 @@ class UI {
         challengePanel.style.alignItems = 'center';
 
         // Create leaderboard button
+        /*
         const leaderboardButton = document.createElement('div');
         leaderboardButton.id = 'leaderboard-button';
         leaderboardButton.style.backgroundColor = '#4CAF50';
@@ -638,12 +639,7 @@ class UI {
         leaderboardButton.style.fontSize = '18px';
         leaderboardButton.style.fontWeight = 'bold';
         leaderboardButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
-        leaderboardButton.style.transition = 'all 0.2s ease-out';
-        leaderboardButton.style.cursor = 'pointer';
-        leaderboardButton.style.userSelect = 'none';
-        leaderboardButton.style.width = '200px';
-        leaderboardButton.style.textAlign = 'center';
-        leaderboardButton.textContent = 'Leaderboard';
+        */
 
         // Create start/stop button
         const startButton = document.createElement('div');
@@ -688,17 +684,6 @@ class UI {
             startButton.style.transform = 'scale(1)';
         });
 
-        // Add hover effect to leaderboard button
-        leaderboardButton.addEventListener('mouseover', () => {
-            leaderboardButton.style.backgroundColor = '#45a049';
-            leaderboardButton.style.transform = 'scale(1.05)';
-        });
-
-        leaderboardButton.addEventListener('mouseout', () => {
-            leaderboardButton.style.backgroundColor = '#4CAF50';
-            leaderboardButton.style.transform = 'scale(1)';
-        });
-
         // Add click handler to start button
         startButton.addEventListener('click', () => {
             if (startButton.dataset.state === 'start') {
@@ -716,14 +701,8 @@ class UI {
             }
         });
 
-        // Add click handler to leaderboard button
-        leaderboardButton.addEventListener('click', () => {
-            // TODO: Implement leaderboard functionality
-            console.log('Leaderboard clicked');
-        });
-
         // Add elements directly to the challenge panel
-        challengePanel.appendChild(leaderboardButton);
+        // challengePanel.appendChild(leaderboardButton);
         challengePanel.appendChild(startButton);
         challengePanel.appendChild(timerDisplay);
         document.body.appendChild(challengePanel);
