@@ -74,6 +74,10 @@ class MobileControls {
         rudderLabel.style.color = 'white';
         rudderLabel.style.fontWeight = 'bold';
         rudderLabel.style.textShadow = '1px 1px 2px black';
+        rudderLabel.style.userSelect = 'none';
+        rudderLabel.style.webkitUserSelect = 'none';
+        rudderLabel.style.mozUserSelect = 'none';
+        rudderLabel.style.msUserSelect = 'none';
         rudderZone.appendChild(rudderLabel);
 
         // Create sail joystick zone (right side)
@@ -93,6 +97,10 @@ class MobileControls {
         sailLabel.style.color = 'white';
         sailLabel.style.fontWeight = 'bold';
         sailLabel.style.textShadow = '1px 1px 2px black';
+        sailLabel.style.userSelect = 'none';
+        sailLabel.style.webkitUserSelect = 'none';
+        sailLabel.style.mozUserSelect = 'none';
+        sailLabel.style.msUserSelect = 'none';
         sailZone.appendChild(sailLabel);
 
         // Add zones to container
