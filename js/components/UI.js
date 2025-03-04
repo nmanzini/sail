@@ -49,22 +49,17 @@ class UI {
                     transform: scale(0.8);
                     transform-origin: top left;
                 }
-                #camera-button {
-                    transform: scale(0.8);
-                    transform-origin: bottom right;
-                }
-                #sound-toggle-btn {
-                    transform: scale(0.8);
-                    transform-origin: bottom right;
+                #author-overlay,
+                #multiplayer-button,
+                #sound-toggle-btn,
+                #vector-button {
+                    transform: scale(0.9);
+                    transform-origin: top right;
+                    margin-top: 8px;
                 }
                 #button-container {
-                    transform: scale(0.8);
-                    transform-origin: center right;
-                }
-                #author-overlay {
-                    transform: none;
-                    font-size: 12px;
-                    padding: 6px 8px;
+                    transform: scale(0.9);
+                    transform-origin: top right;
                 }
             }
             @media (max-width: 480px) {
@@ -81,22 +76,17 @@ class UI {
                     transform: scale(0.75);
                     transform-origin: top left;
                 }
-                #camera-button {
-                    transform: scale(0.75);
-                    transform-origin: bottom right;
-                }
-                #sound-toggle-btn {
-                    transform: scale(0.75);
-                    transform-origin: bottom right;
+                #author-overlay,
+                #multiplayer-button,
+                #sound-toggle-btn,
+                #vector-button {
+                    transform: scale(0.85);
+                    transform-origin: top right;
+                    margin-top: 6px;
                 }
                 #button-container {
-                    transform: scale(0.75);
-                    transform-origin: center right;
-                }
-                #author-overlay {
-                    transform: none;
-                    font-size: 10px;
-                    padding: 4px 6px;
+                    transform: scale(0.85);
+                    transform-origin: top right;
                 }
             }
         `;
@@ -429,10 +419,10 @@ class UI {
         
         // Update the content of the speedometer
         this.speedometer.innerHTML = `
-            <div style="margin-bottom: 15px;">
+            <div style="margin-bottom: 10px;">
                 <div id="speed-value" style="font-size: 24px; font-weight: bold; text-align: center;">0.0 knots</div>
             </div>
-            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
                 <div id="compass-display" style="width: 100px; height: 100px; border-radius: 50%; border: 2px solid white; position: relative; margin: 0 auto;">
                     <div style="position: absolute; top: 5px; left: 50%; transform: translateX(-50%);">N</div>
                     <div style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);">S</div>
@@ -442,11 +432,9 @@ class UI {
                     <div id="wind-direction-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 30px; background-color: #3399ff; transform-origin: top center; opacity: 0.8;"></div>
                 </div>
             </div>
-            <div style="font-size: 10px; display: flex; justify-content: center; margin-bottom: 15px;">
+            <div style="font-size: 10px; display: flex; justify-content: center;">
                 <span style="color: red; margin-right: 10px;">■ Boat</span>
                 <span style="color: #3399ff;">■ Wind</span>
-            </div>
-            <div style="text-align: center; font-size: 10px; color: #666; border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 5px;">
             </div>
         `;
 
