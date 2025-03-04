@@ -1153,7 +1153,7 @@ class UI {
 
         content.innerHTML = `
             <h2 style="color: #3399ff; margin-bottom: 20px;">Time Challenge</h2>
-            <p style="margin-bottom: 15px;">Sail through 5 checkpoints as fast as possible!</p>
+            <p style="margin-bottom: 15px;">Sail through 2 checkpoints as fast as possible!</p>
             <p style="margin-bottom: 15px;">• Look for the glowing green rings with buoys</p>
             <p style="margin-bottom: 15px;">• The final checkpoint will be marked in red</p>
             <p style="margin-bottom: 15px;">• Your time will be recorded when you finish</p>
