@@ -98,6 +98,9 @@ class UI {
         
         // Add buttons to the container
         // Camera button removed per request
+        // Add music button first
+        this.createMusicButton();
+        // Then add sound button
         this.createSoundButton();
         // Add vector visualization button
         this.createVectorButton();
@@ -214,7 +217,8 @@ class UI {
             cameraButton: document.getElementById('camera-button'),
             vectorButton: null,
             vectorModeIndicator: null,
-            multiplayerButton: null
+            multiplayerButton: null,
+            musicButton: null
         };
     }
 
@@ -1200,6 +1204,79 @@ class UI {
      */
     initializeTimeChallenge() {
         this.timeChallenge.start();
+    }
+
+    /**
+     * Create music toggle button
+     */
+    createMusicButton() {
+        const buttonContainer = document.getElementById('button-container');
+        
+        const musicButton = document.createElement('div');
+        musicButton.id = 'music-toggle-btn';
+        musicButton.style.width = '40px';
+        musicButton.style.height = '40px';
+        musicButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        musicButton.style.color = 'white';
+        musicButton.style.display = 'flex';
+        musicButton.style.alignItems = 'center';
+        musicButton.style.justifyContent = 'center';
+        musicButton.style.cursor = 'pointer';
+        musicButton.style.borderRadius = '8px';
+        musicButton.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+        musicButton.style.transition = 'all 0.2s ease';
+        musicButton.style.userSelect = 'none';
+        musicButton.style.webkitUserSelect = 'none';
+        musicButton.style.opacity = '0.5'; // Start with low opacity until audio is initialized
+        
+        // Use SVG icon for music note
+        musicButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+        </svg>`;
+        
+        musicButton.title = 'Toggle Background Music (Click anywhere first to activate audio)';
+        
+        // Add hover effect
+        musicButton.addEventListener('mouseover', () => {
+            musicButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            musicButton.style.transform = 'scale(1.05)';
+        });
+        
+        musicButton.addEventListener('mouseout', () => {
+            musicButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            musicButton.style.transform = 'scale(1)';
+        });
+        
+        // Track music state
+        let musicEnabled = true;
+        
+        // Add event listener
+        musicButton.addEventListener('click', () => {
+            if (this.app.audio && this.app.audio.initialized) {
+                musicEnabled = !musicEnabled;
+                
+                // Toggle background music
+                this.app.audio.toggleBackgroundMusic(musicEnabled);
+                
+                // Update button icon based on music state
+                if (musicEnabled) {
+                    musicButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                    </svg>`;
+                } else {
+                    musicButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" fill="#ff4444"/>
+                    </svg>`;
+                }
+            } else {
+                // If audio not initialized, try to initialize it
+                const initEvent = new Event('click');
+                document.dispatchEvent(initEvent);
+            }
+        });
+        
+        buttonContainer.appendChild(musicButton);
+        this.elements.musicButton = musicButton;
     }
 }
 
