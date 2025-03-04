@@ -49,18 +49,6 @@ class UI {
                     transform: scale(0.8);
                     transform-origin: top left;
                 }
-                #author-overlay,
-                #multiplayer-button,
-                #sound-toggle-btn,
-                #vector-button {
-                    transform: scale(0.9);
-                    transform-origin: top right;
-                    margin-top: 8px;
-                }
-                #button-container {
-                    transform: scale(0.9);
-                    transform-origin: top right;
-                }
             }
             @media (max-width: 480px) {
                 #top-right-container {
@@ -75,18 +63,6 @@ class UI {
                 #controls-panel {
                     transform: scale(0.75);
                     transform-origin: top left;
-                }
-                #author-overlay,
-                #multiplayer-button,
-                #sound-toggle-btn,
-                #vector-button {
-                    transform: scale(0.85);
-                    transform-origin: top right;
-                    margin-top: 6px;
-                }
-                #button-container {
-                    transform: scale(0.85);
-                    transform-origin: top right;
                 }
             }
         `;
@@ -445,6 +421,8 @@ class UI {
      * Create the multiplayer connection button
      */
     createMultiplayerButton() {
+        const buttonContainer = document.getElementById('button-container');
+        
         const multiplayerButton = document.createElement('div');
         multiplayerButton.id = 'multiplayer-button';
         multiplayerButton.style.width = '40px';
@@ -460,7 +438,6 @@ class UI {
         multiplayerButton.style.transition = 'all 0.2s ease';
         multiplayerButton.style.userSelect = 'none';
         multiplayerButton.style.webkitUserSelect = 'none';
-        multiplayerButton.style.marginTop = '10px';
         
         // Use SVG icon for multiplayer
         multiplayerButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
@@ -504,14 +481,8 @@ class UI {
             }
         });
         
-        // Add to container after author overlay
-        const topRightContainer = document.getElementById('top-right-container');
-        const authorOverlay = document.getElementById('author-overlay');
-        if (authorOverlay) {
-            topRightContainer.insertBefore(multiplayerButton, authorOverlay.nextSibling);
-        } else {
-            topRightContainer.appendChild(multiplayerButton);
-        }
+        // Add to button container
+        buttonContainer.appendChild(multiplayerButton);
         
         // Store reference
         this.elements.multiplayerButton = multiplayerButton;
@@ -948,6 +919,8 @@ class UI {
      * @param {string} authorName - The author's name/handle to display (default: @nicolamanzini)
      */
     createAuthorOverlay(authorName = '@nicolamanzini') {
+        const buttonContainer = document.getElementById('button-container');
+        
         const authorOverlay = document.createElement('div');
         authorOverlay.id = 'author-overlay';
         authorOverlay.style.width = '40px';
@@ -963,7 +936,6 @@ class UI {
         authorOverlay.style.transition = 'all 0.2s ease';
         authorOverlay.style.userSelect = 'none';
         authorOverlay.style.webkitUserSelect = 'none';
-        authorOverlay.style.marginTop = '10px';
         
         // Generate Twitter/X URL from the author name
         const authorHandle = authorName.startsWith('@') ? authorName.substring(1) : authorName;
@@ -990,14 +962,8 @@ class UI {
             window.open(authorUrl, '_blank', 'noopener,noreferrer');
         });
         
-        // Add to top-right-container after speedometer but before button container
-        const topRightContainer = document.getElementById('top-right-container');
-        const buttonContainer = document.getElementById('button-container');
-        if (buttonContainer) {
-            topRightContainer.insertBefore(authorOverlay, buttonContainer);
-        } else {
-            topRightContainer.appendChild(authorOverlay);
-        }
+        // Add to button container
+        buttonContainer.appendChild(authorOverlay);
     }
 
     /**
