@@ -339,17 +339,21 @@ class AudioManager {
     stopSound(soundObj) {
         if (!soundObj.playing || !soundObj.source) return;
         
+        // Mark as not playing immediately
+        soundObj.playing = false;
+        
         // Fade out
         soundObj.gainNode.gain.setTargetAtTime(0, this.audioContext.currentTime, 0.2);
         
         // Stop after fade out
         setTimeout(() => {
             try {
-                soundObj.source.stop();
+                if (soundObj.source) {
+                    soundObj.source.stop();
+                }
             } catch (e) {
                 // Ignore errors if already stopped
             }
-            soundObj.playing = false;
         }, 300);
     }
     
@@ -583,7 +587,7 @@ class AudioManager {
      * Toggle background music
      */
     toggleBackgroundMusic(enabled) {
-        if (!this.initialized) return;
+        if (!this.initialized) return false;
         
         if (enabled) {
             // Start background music if not playing
