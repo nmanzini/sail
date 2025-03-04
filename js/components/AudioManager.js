@@ -116,8 +116,8 @@ class AudioManager {
                         
                         this.initialized = true;
                         
-                        // Use slightly faster fade-in (2 seconds instead of 7)
-                        this.fadeInMasterVolume(0.5, 2); // Fade to 50% volume over 2 seconds
+                        // Remove delay and start at full volume immediately
+                        this.masterGain.gain.value = 0.5; // Set to 50% volume immediately
                         
                         resolve();
                     })
@@ -211,16 +211,11 @@ class AudioManager {
         // Start playing if not already
         if (!this.windSound.playing) {
             this.playLoopingSound(this.windSound);
-            // Set initial volume to a low value
-            this.windSound.gainNode.gain.value = 0;
-            // Gradually increase to the calculated volume
-            this.windSound.gainNode.gain.linearRampToValueAtTime(
-                volume, 
-                this.audioContext.currentTime + 2 // 2 second fade-in (reduced from 10)
-            );
+            // Set volume immediately without fade
+            this.windSound.gainNode.gain.value = volume;
         } else {
-            // Update volume with faster smoothing for already playing sound
-            this.windSound.gainNode.gain.setTargetAtTime(volume, this.audioContext.currentTime, 0.2);
+            // Update volume immediately without smoothing
+            this.windSound.gainNode.gain.value = volume;
         }
     }
     
@@ -236,16 +231,11 @@ class AudioManager {
         // Start playing if not already
         if (!this.seaSound.playing) {
             this.playLoopingSound(this.seaSound);
-            // Set initial volume to a low value
-            this.seaSound.gainNode.gain.value = 0;
-            // Gradually increase to the target volume
-            this.seaSound.gainNode.gain.linearRampToValueAtTime(
-                volume, 
-                this.audioContext.currentTime + 2 // 2 second fade-in (reduced from 10)
-            );
+            // Set volume immediately without fade
+            this.seaSound.gainNode.gain.value = volume;
         } else {
-            // Update volume with smoothing for already playing sound
-            this.seaSound.gainNode.gain.setTargetAtTime(volume, this.audioContext.currentTime, 0.5);
+            // Update volume immediately without smoothing
+            this.seaSound.gainNode.gain.value = volume;
         }
     }
     
@@ -398,12 +388,8 @@ class AudioManager {
                     this.windSpeedToVolume.maxGain
                 );
                 
-                // Set initial volume to 0 and fade in
-                this.windSound.gainNode.gain.value = 0;
-                this.windSound.gainNode.gain.linearRampToValueAtTime(
-                    volume, 
-                    this.audioContext.currentTime + 2 // 2 second fade-in (reduced from 5)
-                );
+                // Set volume immediately without fade
+                this.windSound.gainNode.gain.value = volume;
             }
         } else {
             // Stop wind sound
@@ -423,13 +409,8 @@ class AudioManager {
             // Start sea sound if not playing
             if (!this.seaSound.playing) {
                 this.playLoopingSound(this.seaSound);
-                
-                // Set initial volume to 0 and fade in
-                this.seaSound.gainNode.gain.value = 0;
-                this.seaSound.gainNode.gain.linearRampToValueAtTime(
-                    0.3, // Default volume
-                    this.audioContext.currentTime + 2 // 2 second fade-in (reduced from 5)
-                );
+                // Set volume immediately without fade
+                this.seaSound.gainNode.gain.value = 0.3; // Default volume
             }
         } else {
             // Stop sea sound
