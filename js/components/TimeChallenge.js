@@ -14,6 +14,10 @@ class TimeChallenge {
         this.timerDisplay = null;
         this.checkpointRings = [];
         
+        // Check if running on localhost
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1';
+        
         // Challenge configuration
         this.config = {
             checkpointRadius: 20, // Reduced from 30 to 20
@@ -21,11 +25,16 @@ class TimeChallenge {
             checkpointColor: 0x00ff00, // Green color for active checkpoint
             checkpointPassedColor: 0x3399ff, // Blue color for passed checkpoints
             finalCheckpointColor: 0xff0000, // Red color for final checkpoint
-            checkpointCount: 2, // Number of checkpoints
-            checkpointPositions: [
-                { x: 150, z: -150 },      // First checkpoint - southeast of starting position
-                { x: 300, z: 0 }          // Final checkpoint - northwest of first checkpoint
-            ],
+            // Set up a simpler challenge for localhost testing
+            checkpointCount: isLocalhost ? 1 : 2,
+            checkpointPositions: isLocalhost ? 
+                // On localhost: Just one checkpoint close to the starting position
+                [{ x: 50, z: 0 }] : 
+                // Normal mode: Original checkpoint positions
+                [
+                    { x: 150, z: -150 },      // First checkpoint - southeast of starting position
+                    { x: 300, z: 0 }          // Final checkpoint - northwest of first checkpoint
+                ],
             // Animation settings
             ringPulseSpeed: 2, // Speed of ring pulsing
             ringPulseAmount: 0.1, // Amount to pulse (10% of radius)
